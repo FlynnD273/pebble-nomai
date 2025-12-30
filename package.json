@@ -1,0 +1,63 @@
+{
+	"name": "pebble-nomai",
+	"author": "MakeAwesomeHappen",
+	"version": "1.0.0",
+	"keywords": [
+		"pebble-app"
+	],
+	"pebble": {
+		"displayName": "pebble-nomai",
+		"uuid": "240d60a3-7952-4094-a456-c187c46c2f52",
+		"sdkVersion": "3",
+		"enableMultiJS": true,
+		"targetPlatforms": [
+			"aplite",
+			"basalt",
+			"chalk",
+			"diorite",
+			"emery",
+			"flint"
+		],
+		"watchapp": {
+			"watchface": true
+		},
+		"messageKeys": [],
+		"resources": {
+			"media": [
+				{
+					"file": "Center.fpath",
+					"name": "MASK_Center",
+					"type": "raw"
+				},
+				{
+					"file": "Face.fpath",
+					"name": "MASK_Face",
+					"type": "raw"
+				},
+				{
+					"file": "Highlight.fpath",
+					"name": "MASK_Highlight",
+					"type": "raw"
+				},
+				{
+					"file": "LightShadow.fpath",
+					"name": "MASK_LightShadow",
+					"type": "raw"
+				},
+				{
+					"file": "Mid.fpath",
+					"name": "MASK_Mid",
+					"type": "raw"
+				},
+				{
+					"file": "Shadow.fpath",
+					"name": "MASK_Shadow",
+					"type": "raw"
+				}
+			]
+		}
+	},
+	"devDependencies": {
+		"pebble-fctx-compiler": "^1.2.2"
+	}
+}
