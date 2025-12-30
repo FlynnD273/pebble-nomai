@@ -7,6 +7,7 @@
 			"-I/home/flynn/.pebble-sdk/SDKs/4.9.77/sdk-core/pebble/basalt/include",
 			"-Ibuild/include/",
 			"-Iinclude/",
+			"-Inode_modules/pebble-fctx/dist/include/",
 			"-Ibuild/basalt/"
 		],
 		"file": "*.*"

@@ -53,11 +53,19 @@
 					"file": "Shadow.fpath",
 					"name": "MASK_Shadow",
 					"type": "raw"
+				},
+				{
+					"file": "Eye.fpath",
+					"name": "MASK_Eye",
+					"type": "raw"
 				}
 			]
 		}
 	},
 	"devDependencies": {
 		"pebble-fctx-compiler": "^1.2.2"
+	},
+	"dependencies": {
+		"pebble-fctx": "^1.6.3"
 	}
 }

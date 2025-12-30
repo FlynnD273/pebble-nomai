@@ -1,25 +1,28 @@
-#include "fctx.h"
-#include "fpath.h"
+#include <pebble-fctx/fctx.h>
+#include <pebble-fctx/fpath.h>
 
 static Window *s_window;
 static Layer *s_mask_layer;
 static FContext *fcontext;
 
-#define PATH_COUNT 6
+#define PATH_COUNT 7
 static uint32_t mask_path_resources[PATH_COUNT] = {
-    RESOURCE_ID_MASK_Shadow,      RESOURCE_ID_MASK_Mid,
+    RESOURCE_ID_MASK_Eye,         RESOURCE_ID_MASK_Shadow,
+    RESOURCE_ID_MASK_Mid,
 
     RESOURCE_ID_MASK_LightShadow, RESOURCE_ID_MASK_Center,
     RESOURCE_ID_MASK_Face,        RESOURCE_ID_MASK_Highlight,
 };
 static GColor mask_path_colors[PATH_COUNT];
 static FPath *mask_paths[PATH_COUNT];
+#define ZOOM_DELAY 5000
 #define SMALL 0
 #define BIG 2048
 #define ANIM_ZOOM_IN_DUR 1000
 #define ANIM_ZOOM_OUT_DUR 2000
 static uint32_t scale = BIG;
 static bool is_animating = false;
+static AppTimer *timer = NULL;
 
 static void prv_mask_draw(Layer *layer, GContext *ctx) {
   uint32_t y_offset = 296;
@@ -173,17 +176,25 @@ static void do_zoom_in() {
 
 static void accel_tap(AccelAxisType axis, int32_t direction) {
   if (!is_animating) {
-    do_zoom_in();
+    if (scale == BIG) {
+      if (timer) {
+        app_timer_reschedule(timer, ZOOM_DELAY);
+      }
+    } else {
+      do_zoom_in();
+      timer = app_timer_register(ZOOM_DELAY, do_zoom_out, NULL);
+    }
   }
 }
 
 static void prv_window_load(Window *window) {
-  mask_path_colors[0] = GColorDarkGreen;
-  mask_path_colors[1] = GColorArmyGreen;
-  mask_path_colors[2] = GColorLimerick;
-  mask_path_colors[3] = GColorMediumAquamarine;
-  mask_path_colors[4] = GColorKellyGreen;
-  mask_path_colors[5] = GColorBrass;
+  mask_path_colors[0] = GColorBlack;
+  mask_path_colors[1] = GColorDarkGreen;
+  mask_path_colors[2] = GColorArmyGreen;
+  mask_path_colors[3] = GColorLimerick;
+  mask_path_colors[4] = GColorMediumAquamarine;
+  mask_path_colors[5] = GColorKellyGreen;
+  mask_path_colors[6] = GColorBrass;
 
   fcontext = calloc(1, sizeof(FContext));
 #ifdef PBL_COLOR
@@ -217,7 +228,7 @@ static void prv_init(void) {
                                            .load = prv_window_load,
                                            .unload = prv_window_unload,
                                        });
-  window_set_background_color(s_window, GColorBlack);
+  window_set_background_color(s_window, GColorDarkGray);
   window_stack_push(s_window, false);
 }
 
