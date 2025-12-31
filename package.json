@@ -55,6 +55,11 @@
 					"type": "raw"
 				},
 				{
+					"file": "OUTERwilds-Normal.ffont",
+					"name": "WildsFont",
+					"type": "raw"
+				},
+				{
 					"file": "Eye.fpath",
 					"name": "MASK_Eye",
 					"type": "raw"

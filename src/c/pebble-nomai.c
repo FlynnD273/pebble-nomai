@@ -1,7 +1,9 @@
 #include <pebble-fctx/fctx.h>
+#include <pebble-fctx/ffont.h>
 #include <pebble-fctx/fpath.h>
 
 static Window *s_window;
+static Layer *s_time_layer;
 static Layer *s_mask_layer;
 static FContext *fcontext;
 
@@ -14,6 +16,7 @@ static uint32_t mask_path_resources[PATH_COUNT] = {
     RESOURCE_ID_MASK_Face,        RESOURCE_ID_MASK_Highlight,
 };
 static GColor mask_path_colors[PATH_COUNT];
+static FFont *font;
 static FPath *mask_paths[PATH_COUNT];
 #define ZOOM_DELAY 5000
 #define SMALL 0
@@ -24,7 +27,50 @@ static uint32_t scale = BIG;
 static bool is_animating = false;
 static AppTimer *timer = NULL;
 
+static time_t now;
+static struct tm *current_time;
+
+static void prv_time_draw(Layer *layer, GContext *ctx) {
+  uint32_t y_offset = 296;
+  uint32_t text_y_offset =
+      -48 * 16 / 2 + 16 * 16 - ((scale - SMALL) * 16 * 16 / (BIG - SMALL));
+  uint32_t text_scale = (scale - SMALL) * 127 / (BIG - SMALL) + 129;
+  GRect bounds = layer_get_bounds(layer);
+  fctx_init_context(fcontext, ctx);
+  char time_buf[6];
+  if (clock_is_24h_style()) {
+    strftime(time_buf, sizeof(time_buf), "%R", current_time);
+  } else {
+    strftime(time_buf, sizeof(time_buf), "%l:%M", current_time);
+  }
+
+  fctx_begin_fill(fcontext);
+  fctx_set_text_em_height(fcontext, font, 48 * text_scale / 256);
+  fctx_set_offset(fcontext, FPoint(bounds.size.w * 16 / 2,
+                                   bounds.size.h * 16 / 2 + text_y_offset));
+  fctx_set_fill_color(fcontext, GColorWhite);
+  fctx_draw_string(fcontext, time_buf, font, GTextAlignmentCenter,
+                   FTextAnchorMiddle);
+  fctx_end_fill(fcontext);
+
+  char date_buf[12];
+  strftime(date_buf, sizeof(date_buf), "%a, %b %e", current_time);
+
+  fctx_begin_fill(fcontext);
+  fctx_set_text_em_height(fcontext, font, 20 * text_scale / 256);
+  fctx_set_offset(fcontext,
+                  FPoint(bounds.size.w * 16 / 2,
+                         bounds.size.h * 16 / 2 + 34 * 16 + text_y_offset -
+                             32 * 16 * (256 - text_scale) / 256));
+  fctx_set_fill_color(fcontext, GColorWhite);
+  fctx_draw_string(fcontext, date_buf, font, GTextAlignmentCenter,
+                   FTextAnchorMiddle);
+  fctx_end_fill(fcontext);
+  fctx_deinit_context(fcontext);
+}
+
 static void prv_mask_draw(Layer *layer, GContext *ctx) {
+  layer_mark_dirty(s_time_layer);
   uint32_t y_offset = 296;
   GRect bounds = layer_get_bounds(layer);
   fctx_init_context(fcontext, ctx);
@@ -35,7 +81,7 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   // fctx_set_pivot(fcontext, FPointZero);
   fctx_set_pivot(fcontext, FPointI(64, 64));
   fctx_set_offset(fcontext, FPoint(bounds.size.w * 16 / 2,
-                                   bounds.size.h * 16 / 2 + -y_offset));
+                                   bounds.size.h * 16 / 2 - y_offset));
   FPoint offset = FPoint(0, y_offset);
 #ifdef PBL_COLOR
   for (uint8_t i = 0; i < PATH_COUNT; i++) {
@@ -47,9 +93,14 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   }
 #else
   fctx_begin_fill(fcontext);
-  fctx_set_fill_color(fcontext, GColorWhite);
+  fctx_set_fill_color(fcontext, GColorBlack);
   fctx_draw_commands(fcontext, offset, mask_paths[0]->data,
                      mask_paths[0]->size);
+  fctx_end_fill(fcontext);
+  fctx_begin_fill(fcontext);
+  fctx_set_fill_color(fcontext, GColorWhite);
+  fctx_draw_commands(fcontext, offset, mask_paths[1]->data,
+                     mask_paths[1]->size);
   fctx_end_fill(fcontext);
   GBitmap *fb = graphics_capture_frame_buffer(ctx);
   for (int y = 0; y < bounds.size.h; y++) {
@@ -89,8 +140,8 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   graphics_release_frame_buffer(ctx, fb);
   fctx_begin_fill(fcontext);
   fctx_set_fill_color(fcontext, GColorWhite);
-  fctx_draw_commands(fcontext, offset, mask_paths[1]->data,
-                     mask_paths[1]->size);
+  fctx_draw_commands(fcontext, offset, mask_paths[2]->data,
+                     mask_paths[2]->size);
   fctx_end_fill(fcontext);
   fb = graphics_capture_frame_buffer(ctx);
   for (int y = 0; y < bounds.size.h; y++) {
@@ -111,7 +162,7 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   }
   graphics_release_frame_buffer(ctx, fb);
   fctx_begin_fill(fcontext);
-  for (uint8_t i = 2; i < PATH_COUNT; i++) {
+  for (uint8_t i = 3; i < PATH_COUNT; i++) {
     fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
                        mask_paths[i]->size);
   }
@@ -161,7 +212,7 @@ Animation *animation;
 static void do_zoom_out() {
   animation = animation_create();
   animation_set_implementation(animation, &zoom_out);
-  animation_set_curve(animation, AnimationCurveEaseOut);
+  animation_set_curve(animation, AnimationCurveEaseInOut);
   animation_set_duration(animation, ANIM_ZOOM_OUT_DUR);
   animation_schedule(animation);
 }
@@ -169,7 +220,7 @@ static void do_zoom_out() {
 static void do_zoom_in() {
   animation = animation_create();
   animation_set_implementation(animation, &zoom_in);
-  animation_set_curve(animation, AnimationCurveEaseIn);
+  animation_set_curve(animation, AnimationCurveEaseInOut);
   animation_set_duration(animation, ANIM_ZOOM_IN_DUR);
   animation_schedule(animation);
 }
@@ -187,7 +238,19 @@ static void accel_tap(AccelAxisType axis, int32_t direction) {
   }
 }
 
+static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
+  if (units_changed & MINUTE_UNIT) {
+    current_time = tick_time;
+    if (scale == BIG) {
+      layer_mark_dirty(s_mask_layer);
+    }
+  }
+}
+
 static void prv_window_load(Window *window) {
+  now = time(NULL);
+  current_time = localtime(&now);
+
   mask_path_colors[0] = GColorBlack;
   mask_path_colors[1] = GColorDarkGreen;
   mask_path_colors[2] = GColorArmyGreen;
@@ -197,6 +260,7 @@ static void prv_window_load(Window *window) {
   mask_path_colors[6] = GColorBrass;
 
   fcontext = calloc(1, sizeof(FContext));
+  font = ffont_create_from_resource(RESOURCE_ID_WildsFont);
 #ifdef PBL_COLOR
   fctx_enable_aa(false);
 #endif
@@ -207,11 +271,16 @@ static void prv_window_load(Window *window) {
     mask_paths[i] = fpath_create_from_resource(mask_path_resources[i]);
   }
 
+  s_time_layer = layer_create(bounds);
+  layer_set_update_proc(s_time_layer, prv_time_draw);
+  layer_add_child(window_layer, s_time_layer);
+
   s_mask_layer = layer_create(bounds);
   layer_set_update_proc(s_mask_layer, prv_mask_draw);
   layer_add_child(window_layer, s_mask_layer);
-  accel_tap_service_subscribe(accel_tap);
 
+  accel_tap_service_subscribe(accel_tap);
+  tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
   do_zoom_out();
 }
 
@@ -228,7 +297,7 @@ static void prv_init(void) {
                                            .load = prv_window_load,
                                            .unload = prv_window_unload,
                                        });
-  window_set_background_color(s_window, GColorDarkGray);
+  window_set_background_color(s_window, GColorBlack);
   window_stack_push(s_window, false);
 }
 
