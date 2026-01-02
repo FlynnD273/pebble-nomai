@@ -37,10 +37,12 @@ static uint32_t scale = SMALL;
 static bool is_animating = false;
 static AppTimer *timer = NULL;
 
-static time_t now;
 static struct tm *current_time;
 
 static void prv_time_draw(Layer *layer, GContext *ctx) {
+  if (scale < 4) {
+    return;
+  }
   uint32_t y_offset = 296;
   uint32_t y_move = 24 * 16;
   uint32_t text_y_offset =
@@ -52,14 +54,19 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   if (clock_is_24h_style()) {
     strftime(time_buf, sizeof(time_buf), "%R", current_time);
   } else {
-    if ((current_time->tm_hour % 12) < 10) {
+    if ((((current_time->tm_hour + 11) % 12) + 1) < 10) {
       time_buf[0] = '0' + (current_time->tm_hour % 12);
       time_buf[1] = ':';
       time_buf[2] = '0' + current_time->tm_min / 10;
-      time_buf[3] = '0' + (current_time->tm_hour % 10);
+      time_buf[3] = '0' + (current_time->tm_min % 10);
       time_buf[4] = '\0';
     } else {
-      strftime(time_buf, sizeof(time_buf), "%l:%M", current_time);
+      time_buf[0] = '0' + ((((current_time->tm_hour + 11) % 12) + 1) / 10);
+      time_buf[1] = '0' + ((((current_time->tm_hour + 11) % 12) + 1) % 10);
+      time_buf[2] = ':';
+      time_buf[3] = '0' + current_time->tm_min / 10;
+      time_buf[4] = '0' + (current_time->tm_min % 10);
+      time_buf[5] = '\0';
     }
   }
 
@@ -320,9 +327,6 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 }
 
 static void prv_window_load(Window *window) {
-  now = time(NULL);
-  current_time = localtime(&now);
-
   mask_path_colors[0] = GColorBlack;
   mask_path_colors[1] = GColorDarkGreen;
   mask_path_colors[2] = GColorDarkGreen;
@@ -356,7 +360,11 @@ static void prv_window_load(Window *window) {
 
   accel_tap_service_subscribe(accel_tap);
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
-  // do_zoom_out();
+  time_t now = time(NULL);
+  current_time = localtime(&now);
+  handle_minute_tick(current_time, MINUTE_UNIT);
+
+  do_zoom_out();
 }
 
 static void prv_window_unload(Window *window) {
