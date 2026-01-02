@@ -1,19 +1,29 @@
 #include <pebble-fctx/fctx.h>
 #include <pebble-fctx/ffont.h>
 #include <pebble-fctx/fpath.h>
+#include <pebble.h>
 
 static Window *s_window;
 static Layer *s_time_layer;
 static Layer *s_mask_layer;
 static FContext *fcontext;
 
-#define PATH_COUNT 7
+#define PATH_COUNT 10
 static uint32_t mask_path_resources[PATH_COUNT] = {
-    RESOURCE_ID_MASK_Eye,         RESOURCE_ID_MASK_Shadow,
+    RESOURCE_ID_MASK_Eye,
+    RESOURCE_ID_MASK_OuterShadow,
+    RESOURCE_ID_MASK_Shadow,
+    RESOURCE_ID_MASK_OuterMid,
     RESOURCE_ID_MASK_Mid,
 
-    RESOURCE_ID_MASK_LightShadow, RESOURCE_ID_MASK_Center,
-    RESOURCE_ID_MASK_Face,        RESOURCE_ID_MASK_Highlight,
+    RESOURCE_ID_MASK_OuterLightShadow,
+    RESOURCE_ID_MASK_LightShadow,
+    RESOURCE_ID_MASK_Center,
+    RESOURCE_ID_MASK_Face,
+    RESOURCE_ID_MASK_Highlight,
+};
+static uint32_t mask_path_clip[PATH_COUNT] = {
+    290, 112, 850, 270, 256, 220, 292, 2048, 2048, 256,
 };
 static GColor mask_path_colors[PATH_COUNT];
 static FFont *font;
@@ -21,9 +31,9 @@ static FPath *mask_paths[PATH_COUNT];
 #define ZOOM_DELAY 5000
 #define SMALL 0
 #define BIG 2048
+static uint32_t scale = SMALL;
 #define ANIM_ZOOM_IN_DUR 1000
 #define ANIM_ZOOM_OUT_DUR 2000
-static uint32_t scale = BIG;
 static bool is_animating = false;
 static AppTimer *timer = NULL;
 
@@ -42,7 +52,15 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   if (clock_is_24h_style()) {
     strftime(time_buf, sizeof(time_buf), "%R", current_time);
   } else {
-    strftime(time_buf, sizeof(time_buf), "%l:%M", current_time);
+    if ((current_time->tm_hour % 12) < 10) {
+      time_buf[0] = '0' + (current_time->tm_hour % 12);
+      time_buf[1] = ':';
+      time_buf[2] = '0' + current_time->tm_min / 10;
+      time_buf[3] = '0' + (current_time->tm_hour % 10);
+      time_buf[4] = '\0';
+    } else {
+      strftime(time_buf, sizeof(time_buf), "%l:%M", current_time);
+    }
   }
 
   fctx_begin_fill(fcontext);
@@ -55,7 +73,13 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   fctx_end_fill(fcontext);
 
   char date_buf[12];
-  strftime(date_buf, sizeof(date_buf), "%a, %b %e", current_time);
+  if (current_time->tm_mday < 10) {
+    strftime(date_buf, sizeof(date_buf), "%a, %b ", current_time);
+    date_buf[9] = '0' + current_time->tm_mday;
+    date_buf[10] = '\0';
+  } else {
+    strftime(date_buf, sizeof(date_buf), "%a, %b %e", current_time);
+  }
 
   fctx_begin_fill(fcontext);
   fctx_set_text_em_height(fcontext, font, 20 * text_scale / 256);
@@ -88,13 +112,15 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   fctx_set_scale(
       fcontext, FPointI(128, 128),
       FPoint(min * 16 * (scale + 128) / 128, min * 16 * (scale + 128) / 128));
-  // fctx_set_pivot(fcontext, FPointZero);
   fctx_set_pivot(fcontext, FPointI(64, 64));
   fctx_set_offset(fcontext, FPoint(bounds.size.w * 16 / 2,
                                    bounds.size.h * 16 / 2 - y_offset));
   FPoint offset = FPoint(0, y_offset);
 #ifdef PBL_COLOR
   for (uint8_t i = 0; i < PATH_COUNT; i++) {
+    if (mask_path_clip[i] < scale) {
+      continue;
+    }
     fctx_begin_fill(fcontext);
     fctx_set_fill_color(fcontext, mask_path_colors[i]);
     fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
@@ -102,87 +128,117 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
     fctx_end_fill(fcontext);
   }
 #else
-  fctx_begin_fill(fcontext);
-  fctx_set_fill_color(fcontext, GColorBlack);
-  fctx_draw_commands(fcontext, offset, mask_paths[0]->data,
-                     mask_paths[0]->size);
-  fctx_end_fill(fcontext);
-  fctx_begin_fill(fcontext);
-  fctx_set_fill_color(fcontext, GColorWhite);
-  fctx_draw_commands(fcontext, offset, mask_paths[1]->data,
-                     mask_paths[1]->size);
-  fctx_end_fill(fcontext);
-  GBitmap *fb = graphics_capture_frame_buffer(ctx);
-  for (int16_t y = 0; y < bounds.size.h; y++) {
-    GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
-    for (int16_t x = info.min_x; x <= info.max_x; x += 8) {
-      if (prv_should_skip_dither(bounds, x, y)) {
-        continue;
-      }
-      char patt = 0;
-      switch (y % 8) {
-      case 0:
-        patt = 0b00000000;
-        break;
-      case 1:
-        patt = 0b00100010;
-        break;
-      case 2:
-        patt = 0b00000000;
-        break;
-      case 3:
-        patt = 0b10001010;
-        break;
-      case 4:
-        patt = 0b00000000;
-        break;
-      case 5:
-        patt = 0b00100010;
-        break;
-      case 6:
-        patt = 0b00000000;
-        break;
-      case 7:
-        patt = 0b10101000;
-        break;
-      }
-
-      info.data[x / 8] &= patt;
-    }
-  }
-  graphics_release_frame_buffer(ctx, fb);
-  fctx_begin_fill(fcontext);
-  fctx_set_fill_color(fcontext, GColorWhite);
-  fctx_draw_commands(fcontext, offset, mask_paths[2]->data,
-                     mask_paths[2]->size);
-  fctx_end_fill(fcontext);
-  fb = graphics_capture_frame_buffer(ctx);
-  for (int16_t y = 0; y < bounds.size.h; y++) {
-    GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
-    for (int16_t x = info.min_x; x <= info.max_x; x += 8) {
-      if (prv_should_skip_dither(bounds, x, y)) {
-        continue;
-      }
-      char patt = 0;
-      switch (y % 2) {
-      case 0:
-        patt = 0b01010101;
-        break;
-      case 1:
-        patt = 0b10101010;
-        break;
-      }
-
-      info.data[x / 8] &= patt;
-    }
-  }
-  graphics_release_frame_buffer(ctx, fb);
-  fctx_begin_fill(fcontext);
-  for (uint8_t i = 3; i < PATH_COUNT; i++) {
+  uint8_t i = 0;
+  if (mask_path_clip[i] >= scale) {
+    fctx_begin_fill(fcontext);
+    fctx_set_fill_color(fcontext, GColorBlack);
     fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
                        mask_paths[i]->size);
+    fctx_end_fill(fcontext);
   }
-  fctx_end_fill(fcontext);
+  i++;
+  GBitmap *fb;
+  if (mask_path_clip[i] >= scale) {
+    fctx_begin_fill(fcontext);
+    fctx_set_fill_color(fcontext, GColorWhite);
+    fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
+                       mask_paths[i]->size);
+    fctx_end_fill(fcontext);
+  }
+  i++;
+  if (mask_path_clip[i] >= scale) {
+    fctx_begin_fill(fcontext);
+    fctx_set_fill_color(fcontext, GColorWhite);
+    fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
+                       mask_paths[i]->size);
+    fctx_end_fill(fcontext);
+    fb = graphics_capture_frame_buffer(ctx);
+    for (int16_t y = 0; y < bounds.size.h; y++) {
+      GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
+      for (int16_t x = info.min_x; x <= info.max_x; x += 8) {
+        if (prv_should_skip_dither(bounds, x, y)) {
+          continue;
+        }
+        char patt = 0;
+        switch (y % 8) {
+        case 0:
+          patt = 0b00000000;
+          break;
+        case 1:
+          patt = 0b00100010;
+          break;
+        case 2:
+          patt = 0b00000000;
+          break;
+        case 3:
+          patt = 0b10001010;
+          break;
+        case 4:
+          patt = 0b00000000;
+          break;
+        case 5:
+          patt = 0b00100010;
+          break;
+        case 6:
+          patt = 0b00000000;
+          break;
+        case 7:
+          patt = 0b10101000;
+          break;
+        }
+
+        info.data[x / 8] &= patt;
+      }
+    }
+    graphics_release_frame_buffer(ctx, fb);
+  }
+  i++;
+  if (mask_path_clip[i] >= scale) {
+    fctx_begin_fill(fcontext);
+    fctx_set_fill_color(fcontext, GColorWhite);
+    fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
+                       mask_paths[i]->size);
+    fctx_end_fill(fcontext);
+  }
+  i++;
+  if (mask_path_clip[i] >= scale) {
+    fctx_begin_fill(fcontext);
+    fctx_set_fill_color(fcontext, GColorWhite);
+    fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
+                       mask_paths[i]->size);
+    fctx_end_fill(fcontext);
+    fb = graphics_capture_frame_buffer(ctx);
+    for (int16_t y = 0; y < bounds.size.h; y++) {
+      GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
+      for (int16_t x = info.min_x; x <= info.max_x; x += 8) {
+        if (prv_should_skip_dither(bounds, x, y)) {
+          continue;
+        }
+        char patt = 0;
+        switch (y % 2) {
+        case 0:
+          patt = 0b01010101;
+          break;
+        case 1:
+          patt = 0b10101010;
+          break;
+        }
+
+        info.data[x / 8] &= patt;
+      }
+    }
+    graphics_release_frame_buffer(ctx, fb);
+  }
+  i++;
+  for (; i < PATH_COUNT; i++) {
+    if (mask_path_clip[i] < scale) {
+      continue;
+    }
+    fctx_begin_fill(fcontext);
+    fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
+                       mask_paths[i]->size);
+    fctx_end_fill(fcontext);
+  }
 #endif
 
   fctx_deinit_context(fcontext);
@@ -269,11 +325,14 @@ static void prv_window_load(Window *window) {
 
   mask_path_colors[0] = GColorBlack;
   mask_path_colors[1] = GColorDarkGreen;
-  mask_path_colors[2] = GColorArmyGreen;
-  mask_path_colors[3] = GColorLimerick;
-  mask_path_colors[4] = GColorMediumAquamarine;
-  mask_path_colors[5] = GColorKellyGreen;
-  mask_path_colors[6] = GColorBrass;
+  mask_path_colors[2] = GColorDarkGreen;
+  mask_path_colors[3] = GColorArmyGreen;
+  mask_path_colors[4] = GColorArmyGreen;
+  mask_path_colors[5] = GColorLimerick;
+  mask_path_colors[6] = GColorLimerick;
+  mask_path_colors[7] = GColorMediumAquamarine;
+  mask_path_colors[8] = GColorKellyGreen;
+  mask_path_colors[9] = GColorBrass;
 
   fcontext = calloc(1, sizeof(FContext));
   font = ffont_create_from_resource(RESOURCE_ID_WildsFont);
@@ -297,7 +356,7 @@ static void prv_window_load(Window *window) {
 
   accel_tap_service_subscribe(accel_tap);
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
-  do_zoom_out();
+  // do_zoom_out();
 }
 
 static void prv_window_unload(Window *window) {

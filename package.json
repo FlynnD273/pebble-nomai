@@ -40,8 +40,18 @@
 					"type": "raw"
 				},
 				{
+					"file": "OuterLightShadow.fpath",
+					"name": "MASK_OuterLightShadow",
+					"type": "raw"
+				},
+				{
 					"file": "LightShadow.fpath",
 					"name": "MASK_LightShadow",
+					"type": "raw"
+				},
+				{
+					"file": "OuterMid.fpath",
+					"name": "MASK_OuterMid",
 					"type": "raw"
 				},
 				{
@@ -55,9 +65,9 @@
 					"type": "raw"
 				},
 				{
-					"file": "mask.png",
-					"name": "MaskImage",
-					"type": "bitmap"
+					"file": "OuterShadow.fpath",
+					"name": "MASK_OuterShadow",
+					"type": "raw"
 				},
 				{
 					"file": "OUTERwilds-Normal.ffont",
