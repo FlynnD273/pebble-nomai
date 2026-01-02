@@ -32,8 +32,9 @@ static struct tm *current_time;
 
 static void prv_time_draw(Layer *layer, GContext *ctx) {
   uint32_t y_offset = 296;
+  uint32_t y_move = 24 * 16;
   uint32_t text_y_offset =
-      -48 * 16 / 2 + 16 * 16 - ((scale - SMALL) * 16 * 16 / (BIG - SMALL));
+      -48 * 16 / 2 + y_move - ((scale - SMALL) * y_move / (BIG - SMALL));
   uint32_t text_scale = (scale - SMALL) * 127 / (BIG - SMALL) + 129;
   GRect bounds = layer_get_bounds(layer);
   fctx_init_context(fcontext, ctx);
@@ -69,8 +70,17 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   fctx_deinit_context(fcontext);
 }
 
+static bool prv_should_skip_dither(GRect bounds, int16_t x, int16_t y) {
+  int32_t radius = 12 * 16 * (scale - SMALL + 1) / (BIG - SMALL);
+  return x < bounds.size.w / 2 + radius && x > bounds.size.w / 2 - radius &&
+         y < bounds.size.h / 2 + radius && y > bounds.size.h / 2 - radius;
+}
+
 static void prv_mask_draw(Layer *layer, GContext *ctx) {
   layer_mark_dirty(s_time_layer);
+  if (scale == BIG) {
+    return;
+  }
   uint32_t y_offset = 296;
   GRect bounds = layer_get_bounds(layer);
   fctx_init_context(fcontext, ctx);
@@ -103,9 +113,12 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
                      mask_paths[1]->size);
   fctx_end_fill(fcontext);
   GBitmap *fb = graphics_capture_frame_buffer(ctx);
-  for (int y = 0; y < bounds.size.h; y++) {
+  for (int16_t y = 0; y < bounds.size.h; y++) {
     GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
-    for (int x = info.min_x; x <= info.max_x; x += 8) {
+    for (int16_t x = info.min_x; x <= info.max_x; x += 8) {
+      if (prv_should_skip_dither(bounds, x, y)) {
+        continue;
+      }
       char patt = 0;
       switch (y % 8) {
       case 0:
@@ -144,9 +157,12 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
                      mask_paths[2]->size);
   fctx_end_fill(fcontext);
   fb = graphics_capture_frame_buffer(ctx);
-  for (int y = 0; y < bounds.size.h; y++) {
+  for (int16_t y = 0; y < bounds.size.h; y++) {
     GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
-    for (int x = info.min_x; x <= info.max_x; x += 8) {
+    for (int16_t x = info.min_x; x <= info.max_x; x += 8) {
+      if (prv_should_skip_dither(bounds, x, y)) {
+        continue;
+      }
       char patt = 0;
       switch (y % 2) {
       case 0:
@@ -240,7 +256,7 @@ static void accel_tap(AccelAxisType axis, int32_t direction) {
 
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   if (units_changed & MINUTE_UNIT) {
-    current_time = tick_time;
+    memcpy(current_time, tick_time, sizeof(struct tm));
     if (scale == BIG) {
       layer_mark_dirty(s_mask_layer);
     }

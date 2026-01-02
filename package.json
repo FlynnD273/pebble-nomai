@@ -55,6 +55,11 @@
 					"type": "raw"
 				},
 				{
+					"file": "mask.png",
+					"name": "MaskImage",
+					"type": "bitmap"
+				},
+				{
 					"file": "OUTERwilds-Normal.ffont",
 					"name": "WildsFont",
 					"type": "raw"
