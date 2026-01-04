@@ -2,6 +2,7 @@
 #include <pebble-fctx/ffont.h>
 #include <pebble-fctx/fpath.h>
 #include <pebble.h>
+#define DEBUG
 
 static Window *s_window;
 static Layer *s_time_layer;
@@ -25,29 +26,41 @@ static uint32_t mask_path_resources[PATH_COUNT] = {
 static uint32_t mask_path_clip[PATH_COUNT] = {
     290, 112, 850, 270, 256, 220, 292, 1950, 1175, 256,
 };
-static uint32_t scale = 1950;
-#define DO_ZOOM
 static GColor mask_path_colors[PATH_COUNT];
+void init_colors() {
+  size_t i = 0;
+  mask_path_colors[i++] = GColorBlack;
+  mask_path_colors[i++] = GColorDarkGreen;
+  mask_path_colors[i++] = GColorDarkGreen;
+  mask_path_colors[i++] = GColorArmyGreen;
+  mask_path_colors[i++] = GColorArmyGreen;
+  mask_path_colors[i++] = GColorLimerick;
+  mask_path_colors[i++] = GColorLimerick;
+  mask_path_colors[i++] = GColorMediumAquamarine;
+  mask_path_colors[i++] = GColorKellyGreen;
+  mask_path_colors[i++] = GColorBrass;
+}
+static uint32_t scale = 0;
 static FFont *font;
 static FPath *mask_paths[PATH_COUNT];
-#define ZOOM_DELAY 5000
 #define SMALL 0
 #define BIG 2048
+#define ZOOM_DELAY 5000
 #define ANIM_ZOOM_IN_DUR 1000
 #define ANIM_ZOOM_OUT_DUR 2000
 static bool is_animating = false;
 static AppTimer *timer = NULL;
 
 static struct tm *current_time;
+static int batt_percent;
 
 static void prv_time_draw(Layer *layer, GContext *ctx) {
   if (scale < 4) {
     return;
   }
-  uint32_t y_offset = 296;
   uint32_t y_move = 24 * 16;
   uint32_t text_y_offset =
-      -48 * 16 / 2 + y_move - ((scale - SMALL) * y_move / (BIG - SMALL));
+      -36 * 16 / 2 + y_move - ((scale - SMALL) * y_move / (BIG - SMALL));
   uint32_t text_scale = (scale - SMALL) * 127 / (BIG - SMALL) + 129;
   GRect bounds = layer_get_bounds(layer);
   fctx_init_context(fcontext, ctx);
@@ -72,7 +85,7 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   }
 
   fctx_begin_fill(fcontext);
-  fctx_set_text_em_height(fcontext, font, 48 * text_scale / 256);
+  fctx_set_text_em_height(fcontext, font, 38 * text_scale / 256);
   fctx_set_offset(fcontext, FPoint(bounds.size.w * 16 / 2,
                                    bounds.size.h * 16 / 2 + text_y_offset));
   fctx_set_fill_color(fcontext, GColorWhite);
@@ -90,16 +103,57 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   }
 
   fctx_begin_fill(fcontext);
-  fctx_set_text_em_height(fcontext, font, 20 * text_scale / 256);
+  fctx_set_text_em_height(fcontext, font, 18 * text_scale / 256);
   fctx_set_offset(fcontext,
                   FPoint(bounds.size.w * 16 / 2,
-                         bounds.size.h * 16 / 2 + 34 * 16 + text_y_offset -
-                             32 * 16 * (256 - text_scale) / 256));
+                         bounds.size.h * 16 / 2 + 24 * 16 + text_y_offset -
+                             36 * 16 * (256 - text_scale) / 256));
   fctx_set_fill_color(fcontext, GColorWhite);
   fctx_draw_string(fcontext, date_buf, font, GTextAlignmentCenter,
                    FTextAnchorMiddle);
   fctx_end_fill(fcontext);
   fctx_deinit_context(fcontext);
+
+  uint8_t offset =
+      1 + ((BIG - SMALL) - (scale - SMALL - 1)) * 8 / (BIG - SMALL);
+  GRect rect = GRect(offset, offset, bounds.size.w - offset * 2,
+                     bounds.size.h - offset * 2);
+  if (scale < 670) {
+    return;
+  }
+
+  graphics_context_set_stroke_color(ctx, GColorWhite);
+  graphics_context_set_stroke_width(ctx, 1);
+  for (uint16_t angle = 0; angle < 360; angle += 36 / 4) {
+    graphics_draw_line(ctx,
+                       gpoint_from_polar(rect, GOvalScaleModeFitCircle,
+                                         DEG_TO_TRIGANGLE(angle)),
+                       gpoint_from_polar(rect, GOvalScaleModeFitCircle,
+                                         DEG_TO_TRIGANGLE(angle + 2)));
+  }
+  offset += 8;
+  rect = GRect(offset, offset, bounds.size.w - offset * 2,
+               bounds.size.h - offset * 2);
+  graphics_context_set_stroke_width(ctx, 6);
+  graphics_context_set_stroke_color(ctx, GColorPastelYellow);
+  graphics_draw_arc(
+      ctx, rect, GOvalScaleModeFitCircle,
+      DEG_TO_TRIGANGLE(
+          90 + 90 *
+                   (100 - batt_percent +
+                    ((BIG - SMALL) - (scale - SMALL)) * 100 / (BIG - SMALL)) /
+                   100),
+      DEG_TO_TRIGANGLE(180));
+
+  graphics_context_set_stroke_color(ctx, GColorCeleste);
+  uint16_t angle_offset =
+      90 *
+      (batt_percent - ((BIG - SMALL) - (scale - SMALL)) * 100 / (BIG - SMALL)) /
+      100;
+  if (angle_offset > 0) {
+    graphics_draw_arc(ctx, rect, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(270),
+                      DEG_TO_TRIGANGLE(270 + angle_offset));
+  }
 }
 
 static bool prv_should_skip_dither(GRect bounds, int16_t x, int16_t y) {
@@ -252,6 +306,11 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   fctx_deinit_context(fcontext);
 }
 
+static void handle_battery(BatteryChargeState charge_state) {
+  batt_percent = charge_state.charge_percent;
+  layer_mark_dirty(s_mask_layer);
+}
+
 static void zoom_in_setup(Animation *animation) {
   is_animating = true;
   scale = SMALL;
@@ -313,7 +372,8 @@ static void accel_tap(AccelAxisType axis, int32_t direction) {
       }
     } else {
       do_zoom_in();
-      timer = app_timer_register(ZOOM_DELAY, do_zoom_out, NULL);
+      timer =
+          app_timer_register(ZOOM_DELAY + ANIM_ZOOM_IN_DUR, do_zoom_out, NULL);
     }
   }
 }
@@ -328,16 +388,7 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 }
 
 static void prv_window_load(Window *window) {
-  mask_path_colors[0] = GColorBlack;
-  mask_path_colors[1] = GColorDarkGreen;
-  mask_path_colors[2] = GColorDarkGreen;
-  mask_path_colors[3] = GColorArmyGreen;
-  mask_path_colors[4] = GColorArmyGreen;
-  mask_path_colors[5] = GColorLimerick;
-  mask_path_colors[6] = GColorLimerick;
-  mask_path_colors[7] = GColorMediumAquamarine;
-  mask_path_colors[8] = GColorKellyGreen;
-  mask_path_colors[9] = GColorBrass;
+  init_colors();
 
   fcontext = calloc(1, sizeof(FContext));
   font = ffont_create_from_resource(RESOURCE_ID_WildsFont);
@@ -360,12 +411,15 @@ static void prv_window_load(Window *window) {
   layer_add_child(window_layer, s_mask_layer);
 
   accel_tap_service_subscribe(accel_tap);
+  battery_state_service_subscribe(handle_battery);
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+
+  handle_battery(battery_state_service_peek());
   time_t now = time(NULL);
   current_time = localtime(&now);
   handle_minute_tick(current_time, MINUTE_UNIT);
 
-#ifdef DO_ZOOM
+#ifndef DEBUG
   do_zoom_out();
 #endif
 }
