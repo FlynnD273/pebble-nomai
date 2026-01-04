@@ -30,11 +30,6 @@
 					"type": "raw"
 				},
 				{
-					"file": "Eye.fpath",
-					"name": "MASK_Eye",
-					"type": "raw"
-				},
-				{
 					"file": "Face.fpath",
 					"name": "MASK_Face",
 					"type": "raw"
@@ -45,28 +40,13 @@
 					"type": "raw"
 				},
 				{
-					"file": "LightShadow.fpath",
-					"name": "MASK_LightShadow",
-					"type": "raw"
-				},
-				{
-					"file": "Mid.fpath",
-					"name": "MASK_Mid",
-					"type": "raw"
-				},
-				{
-					"file": "Nose.fpath",
-					"name": "MASK_Nose",
-					"type": "raw"
-				},
-				{
-					"file": "OuterHighlight.fpath",
-					"name": "MASK_OuterHighlight",
-					"type": "raw"
-				},
-				{
 					"file": "OuterLightShadow.fpath",
 					"name": "MASK_OuterLightShadow",
+					"type": "raw"
+				},
+				{
+					"file": "LightShadow.fpath",
+					"name": "MASK_LightShadow",
 					"type": "raw"
 				},
 				{
@@ -75,13 +55,8 @@
 					"type": "raw"
 				},
 				{
-					"file": "OuterMid2.fpath",
-					"name": "MASK_OuterMid2",
-					"type": "raw"
-				},
-				{
-					"file": "OuterShadow.fpath",
-					"name": "MASK_OuterShadow",
+					"file": "Mid.fpath",
+					"name": "MASK_Mid",
 					"type": "raw"
 				},
 				{
@@ -90,23 +65,18 @@
 					"type": "raw"
 				},
 				{
-					"file": "TopFace.fpath",
-					"name": "MASK_TopFace",
-					"type": "raw"
-				},
-				{
-					"file": "TopOuterMid.fpath",
-					"name": "MASK_TopOuterMid",
-					"type": "raw"
-				},
-				{
-					"file": "TopShadow.fpath",
-					"name": "MASK_TopShadow",
+					"file": "OuterShadow.fpath",
+					"name": "MASK_OuterShadow",
 					"type": "raw"
 				},
 				{
 					"file": "OUTERwilds-Normal.ffont",
 					"name": "WildsFont",
+					"type": "raw"
+				},
+				{
+					"file": "Eye.fpath",
+					"name": "MASK_Eye",
 					"type": "raw"
 				}
 			]
