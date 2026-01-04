@@ -23,15 +23,16 @@ static uint32_t mask_path_resources[PATH_COUNT] = {
     RESOURCE_ID_MASK_Highlight,
 };
 static uint32_t mask_path_clip[PATH_COUNT] = {
-    290, 112, 850, 270, 256, 220, 292, 2048, 2048, 256,
+    290, 112, 850, 270, 256, 220, 292, 1950, 1175, 256,
 };
+static uint32_t scale = 1950;
+#define DO_ZOOM
 static GColor mask_path_colors[PATH_COUNT];
 static FFont *font;
 static FPath *mask_paths[PATH_COUNT];
 #define ZOOM_DELAY 5000
 #define SMALL 0
 #define BIG 2048
-static uint32_t scale = SMALL;
 #define ANIM_ZOOM_IN_DUR 1000
 #define ANIM_ZOOM_OUT_DUR 2000
 static bool is_animating = false;
@@ -364,7 +365,9 @@ static void prv_window_load(Window *window) {
   current_time = localtime(&now);
   handle_minute_tick(current_time, MINUTE_UNIT);
 
+#ifdef DO_ZOOM
   do_zoom_out();
+#endif
 }
 
 static void prv_window_unload(Window *window) {
