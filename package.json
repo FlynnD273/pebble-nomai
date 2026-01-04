@@ -1,7 +1,7 @@
 {
 	"name": "pebble-nomai",
 	"author": "MakeAwesomeHappen",
-	"version": "1.0.0",
+	"version": "1.2.0",
 	"keywords": [
 		"pebble-app"
 	],
@@ -22,9 +22,13 @@
 			"watchface": true
 		},
 		"messageKeys": [
+			"Action",
 			"ZoomInDur",
 			"ZoomOutDur",
-			"ZoomPauseDur"
+			"ZoomPauseDur",
+			"PhoneBattLevel",
+			"UpperGauge",
+			"LowerGauge"
 		],
 		"resources": {
 			"media": [

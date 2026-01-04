@@ -9,12 +9,19 @@ static Layer *s_time_layer;
 static Layer *s_mask_layer;
 static FContext *fcontext;
 
+typedef enum GaugeType {
+  GaugeTypeWatchBattery,
+  GaugeTypePhoneBattery,
+} GaugeType;
+
 #define SETTINGS_KEY 0
 typedef struct settings {
   uint16_t version;
   uint32_t zoom_in_duration;
   uint32_t zoom_out_duration;
   uint32_t zoom_pause_duration;
+  GaugeType upper_gauge;
+  GaugeType lower_gauge;
 } Settings;
 static Settings settings;
 
@@ -23,10 +30,12 @@ static void default_settings() {
   settings.zoom_in_duration = 1000;
   settings.zoom_out_duration = 2000;
   settings.zoom_pause_duration = 5000;
+  settings.upper_gauge = GaugeTypePhoneBattery;
+  settings.lower_gauge = GaugeTypeWatchBattery;
 }
 
 #define PATH_COUNT 10
-static uint32_t mask_path_resources[PATH_COUNT] = {
+static uint8_t mask_path_resources[PATH_COUNT] = {
     RESOURCE_ID_MASK_Eye,
     RESOURCE_ID_MASK_OuterShadow,
     RESOURCE_ID_MASK_Shadow,
@@ -39,7 +48,7 @@ static uint32_t mask_path_resources[PATH_COUNT] = {
     RESOURCE_ID_MASK_Face,
     RESOURCE_ID_MASK_Highlight,
 };
-static uint32_t mask_path_clip[PATH_COUNT] = {
+static uint16_t mask_path_clip[PATH_COUNT] = {
     290, 112, 850, 270, 256, 220, 292, 1950, 1175, 256,
 };
 static GColor mask_path_colors[PATH_COUNT];
@@ -56,7 +65,7 @@ void init_colors() {
   mask_path_colors[i++] = GColorKellyGreen;
   mask_path_colors[i++] = GColorBrass;
 }
-static uint32_t scale = 0;
+static uint16_t scale = 0;
 static FFont *font;
 static FPath *mask_paths[PATH_COUNT];
 #define SMALL 0
@@ -65,7 +74,20 @@ static bool is_animating = false;
 static AppTimer *timer = NULL;
 
 static struct tm *current_time;
-static int batt_percent;
+static uint8_t batt_percent;
+static uint8_t phone_batt_percent = 0;
+
+static void request_battery();
+
+static uint8_t get_gauge_value(GaugeType type) {
+  switch (type) {
+  case GaugeTypePhoneBattery:
+    return phone_batt_percent;
+  case GaugeTypeWatchBattery:
+    return batt_percent;
+  }
+  return 0;
+}
 
 static void prv_time_draw(Layer *layer, GContext *ctx) {
   if (scale < 4) {
@@ -153,7 +175,7 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
       ctx, rect, GOvalScaleModeFitCircle,
       DEG_TO_TRIGANGLE(
           90 + 90 *
-                   (100 - batt_percent +
+                   (100 - get_gauge_value(settings.lower_gauge) +
                     ((BIG - SMALL) - (scale - SMALL)) * 100 / (BIG - SMALL)) /
                    100),
       DEG_TO_TRIGANGLE(180));
@@ -161,7 +183,8 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   graphics_context_set_stroke_color(ctx, GColorCeleste);
   uint16_t angle_offset =
       90 *
-      (batt_percent - ((BIG - SMALL) - (scale - SMALL)) * 100 / (BIG - SMALL)) /
+      (get_gauge_value(settings.upper_gauge) -
+       ((BIG - SMALL) - (scale - SMALL)) * 100 / (BIG - SMALL)) /
       100;
   if (angle_offset > 0) {
     graphics_draw_arc(ctx, rect, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(270),
@@ -180,7 +203,7 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   if (scale == BIG) {
     return;
   }
-  uint32_t y_offset = 296;
+  uint16_t y_offset = 296;
   GRect bounds = layer_get_bounds(layer);
   fctx_init_context(fcontext, ctx);
   uint8_t min = bounds.size.w < bounds.size.h ? bounds.size.w : bounds.size.h;
@@ -395,6 +418,9 @@ static void accel_tap(AccelAxisType axis, int32_t direction) {
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   if (units_changed & MINUTE_UNIT) {
     memcpy(current_time, tick_time, sizeof(struct tm));
+    if (current_time->tm_min % 5 == 0) {
+      request_battery();
+    }
     if (scale == BIG) {
       layer_mark_dirty(s_mask_layer);
     }
@@ -404,7 +430,7 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 static void prv_window_load(Window *window) {
   init_colors();
 
-  fcontext = calloc(1, sizeof(FContext));
+  fcontext = malloc(sizeof(FContext));
   font = ffont_create_from_resource(RESOURCE_ID_WildsFont);
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
@@ -451,23 +477,47 @@ static void save_settings() {
   persist_write_data(SETTINGS_KEY, &settings, sizeof(settings));
 }
 
+static void request_battery() {
+  printf("Requesting battery...");
+  DictionaryIterator *iter;
+  AppMessageResult result = app_message_outbox_begin(&iter);
+
+  if (result == APP_MSG_OK) {
+    dict_write_cstring(iter, MESSAGE_KEY_Action, "GetPhoneBatt");
+    result = app_message_outbox_send();
+  }
+}
+
 static void inbox_received_handler(DictionaryIterator *iter, void *context) {
-  Tuple *zoom_in_t = dict_find(iter, MESSAGE_KEY_ZoomInDur);
-  if (zoom_in_t) {
-    settings.zoom_in_duration = zoom_in_t->value->int32;
+  Tuple *tuple = dict_find(iter, MESSAGE_KEY_PhoneBattLevel);
+  if (tuple) {
+    phone_batt_percent = tuple->value->int32;
   }
-  Tuple *zoom_out_t = dict_find(iter, MESSAGE_KEY_ZoomOutDur);
-  if (zoom_out_t) {
-    settings.zoom_out_duration = zoom_out_t->value->int32;
+  tuple = dict_find(iter, MESSAGE_KEY_UpperGauge);
+  if (tuple) {
+    settings.upper_gauge = atoi(tuple->value->cstring);
   }
-  Tuple *zoom_pause_t = dict_find(iter, MESSAGE_KEY_ZoomPauseDur);
-  if (zoom_pause_t) {
-    settings.zoom_pause_duration = zoom_pause_t->value->int32;
+  tuple = dict_find(iter, MESSAGE_KEY_LowerGauge);
+  if (tuple) {
+    settings.lower_gauge = atoi(tuple->value->cstring);
+  }
+  tuple = dict_find(iter, MESSAGE_KEY_ZoomInDur);
+  if (tuple) {
+    settings.zoom_in_duration = tuple->value->int32;
+  }
+  tuple = dict_find(iter, MESSAGE_KEY_ZoomOutDur);
+  if (tuple) {
+    settings.zoom_out_duration = tuple->value->int32;
+  }
+  tuple = dict_find(iter, MESSAGE_KEY_ZoomPauseDur);
+  if (tuple) {
+    settings.zoom_pause_duration = tuple->value->int32;
   }
   save_settings();
 }
 
 static void prv_init(void) {
+  load_settings();
   s_window = window_create();
   window_set_window_handlers(s_window, (WindowHandlers){
                                            .load = prv_window_load,
@@ -476,9 +526,8 @@ static void prv_init(void) {
   window_set_background_color(s_window, GColorBlack);
   window_stack_push(s_window, false);
 
-  load_settings();
   app_message_register_inbox_received(inbox_received_handler);
-  app_message_open(128, 0);
+  app_message_open(128, 128);
 }
 
 static void prv_deinit(void) { window_destroy(s_window); }

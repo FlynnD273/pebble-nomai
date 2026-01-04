@@ -1,3 +1,4 @@
+const gaugeOptions = [{ label: "Watch battery level", value: "0" }, { label: "Phone battery level", value: "1" }];
 module.exports = [
 	{
 		"type": "heading",
@@ -32,6 +33,20 @@ module.exports = [
 				"max": 10000,
 				"step": 500,
 				"defaultValue": 5000
+			},
+			{
+				"type": "select",
+				"messageKey": "UpperGauge",
+				"label": "Upper gauge information",
+				"options": gaugeOptions,
+				"defaultValue": gaugeOptions[1].value
+			},
+			{
+				"type": "select",
+				"messageKey": "LowerGauge",
+				"label": "Lower gauge information",
+				"options": gaugeOptions,
+				"defaultValue": gaugeOptions[0].value
 			}
 		]
 	},

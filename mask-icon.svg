@@ -10,7 +10,7 @@
    inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
    sodipodi:docname="mask-icon.svg"
    xml:space="preserve"
-   inkscape:export-filename="mask.png"
+   inkscape:export-filename="icon.png"
    inkscape:export-xdpi="18.75"
    inkscape:export-ydpi="18.75"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
@@ -36,7 +36,7 @@
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg1"
-     inkscape:export-bgcolor="#00000000" /><defs
+     inkscape:export-bgcolor="#000000ff" /><defs
      id="defs1"><inkscape:path-effect
        effect="mirror_symmetry"
        start_point="64,0"
