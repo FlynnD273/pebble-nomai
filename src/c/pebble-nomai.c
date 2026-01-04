@@ -392,9 +392,6 @@ static void prv_window_load(Window *window) {
 
   fcontext = calloc(1, sizeof(FContext));
   font = ffont_create_from_resource(RESOURCE_ID_WildsFont);
-#ifdef PBL_COLOR
-  fctx_enable_aa(false);
-#endif
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
