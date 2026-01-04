@@ -2,7 +2,7 @@
 #include <pebble-fctx/ffont.h>
 #include <pebble-fctx/fpath.h>
 #include <pebble.h>
-#define DEBUG
+// #define DEBUG
 
 static Window *s_window;
 static Layer *s_time_layer;
