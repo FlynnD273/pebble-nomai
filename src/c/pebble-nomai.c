@@ -9,6 +9,22 @@ static Layer *s_time_layer;
 static Layer *s_mask_layer;
 static FContext *fcontext;
 
+#define SETTINGS_KEY 0
+typedef struct settings {
+  uint16_t version;
+  uint32_t zoom_in_duration;
+  uint32_t zoom_out_duration;
+  uint32_t zoom_pause_duration;
+} Settings;
+static Settings settings;
+
+static void default_settings() {
+  settings.version = 0;
+  settings.zoom_in_duration = 1000;
+  settings.zoom_out_duration = 2000;
+  settings.zoom_pause_duration = 5000;
+}
+
 #define PATH_COUNT 10
 static uint32_t mask_path_resources[PATH_COUNT] = {
     RESOURCE_ID_MASK_Eye,
@@ -45,9 +61,6 @@ static FFont *font;
 static FPath *mask_paths[PATH_COUNT];
 #define SMALL 0
 #define BIG 2048
-#define ZOOM_DELAY 5000
-#define ANIM_ZOOM_IN_DUR 1000
-#define ANIM_ZOOM_OUT_DUR 2000
 static bool is_animating = false;
 static AppTimer *timer = NULL;
 
@@ -352,7 +365,7 @@ static void do_zoom_out() {
   animation = animation_create();
   animation_set_implementation(animation, &zoom_out);
   animation_set_curve(animation, AnimationCurveEaseInOut);
-  animation_set_duration(animation, ANIM_ZOOM_OUT_DUR);
+  animation_set_duration(animation, settings.zoom_out_duration);
   animation_schedule(animation);
 }
 
@@ -360,7 +373,7 @@ static void do_zoom_in() {
   animation = animation_create();
   animation_set_implementation(animation, &zoom_in);
   animation_set_curve(animation, AnimationCurveEaseInOut);
-  animation_set_duration(animation, ANIM_ZOOM_IN_DUR);
+  animation_set_duration(animation, settings.zoom_in_duration);
   animation_schedule(animation);
 }
 
@@ -368,12 +381,13 @@ static void accel_tap(AccelAxisType axis, int32_t direction) {
   if (!is_animating) {
     if (scale == BIG) {
       if (timer) {
-        app_timer_reschedule(timer, ZOOM_DELAY);
+        app_timer_reschedule(timer, settings.zoom_pause_duration);
       }
     } else {
       do_zoom_in();
-      timer =
-          app_timer_register(ZOOM_DELAY + ANIM_ZOOM_IN_DUR, do_zoom_out, NULL);
+      timer = app_timer_register(settings.zoom_pause_duration +
+                                     settings.zoom_in_duration,
+                                 do_zoom_out, NULL);
     }
   }
 }
@@ -428,6 +442,31 @@ static void prv_window_unload(Window *window) {
   }
 }
 
+static void load_settings() {
+  default_settings();
+  persist_read_data(SETTINGS_KEY, &settings, sizeof(settings));
+}
+
+static void save_settings() {
+  persist_write_data(SETTINGS_KEY, &settings, sizeof(settings));
+}
+
+static void inbox_received_handler(DictionaryIterator *iter, void *context) {
+  Tuple *zoom_in_t = dict_find(iter, MESSAGE_KEY_ZoomInDur);
+  if (zoom_in_t) {
+    settings.zoom_in_duration = zoom_in_t->value->int32;
+  }
+  Tuple *zoom_out_t = dict_find(iter, MESSAGE_KEY_ZoomOutDur);
+  if (zoom_out_t) {
+    settings.zoom_out_duration = zoom_out_t->value->int32;
+  }
+  Tuple *zoom_pause_t = dict_find(iter, MESSAGE_KEY_ZoomPauseDur);
+  if (zoom_pause_t) {
+    settings.zoom_pause_duration = zoom_pause_t->value->int32;
+  }
+  save_settings();
+}
+
 static void prv_init(void) {
   s_window = window_create();
   window_set_window_handlers(s_window, (WindowHandlers){
@@ -436,6 +475,10 @@ static void prv_init(void) {
                                        });
   window_set_background_color(s_window, GColorBlack);
   window_stack_push(s_window, false);
+
+  load_settings();
+  app_message_register_inbox_received(inbox_received_handler);
+  app_message_open(128, 0);
 }
 
 static void prv_deinit(void) { window_destroy(s_window); }

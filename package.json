@@ -21,7 +21,11 @@
 		"watchapp": {
 			"watchface": true
 		},
-		"messageKeys": [],
+		"messageKeys": [
+			"ZoomInDur",
+			"ZoomOutDur",
+			"ZoomPauseDur"
+		],
 		"resources": {
 			"media": [
 				{
@@ -92,6 +96,7 @@
 		"pebble-fctx-compiler": "^1.2.2"
 	},
 	"dependencies": {
+		"@rebble/clay": "^1.0.6",
 		"pebble-fctx": "^1.6.3"
 	}
 }
