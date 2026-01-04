@@ -2,37 +2,63 @@
 #include <pebble-fctx/ffont.h>
 #include <pebble-fctx/fpath.h>
 #include <pebble.h>
+#define DEBUG
 
 static Window *s_window;
 static Layer *s_time_layer;
 static Layer *s_mask_layer;
 static FContext *fcontext;
 
-#define PATH_COUNT 10
+#define PATH_COUNT 16
 static uint32_t mask_path_resources[PATH_COUNT] = {
     RESOURCE_ID_MASK_Eye,
     RESOURCE_ID_MASK_OuterShadow,
     RESOURCE_ID_MASK_Shadow,
+    RESOURCE_ID_MASK_TopShadow,
+    RESOURCE_ID_MASK_TopOuterMid,
     RESOURCE_ID_MASK_OuterMid,
+    RESOURCE_ID_MASK_OuterMid2,
     RESOURCE_ID_MASK_Mid,
 
     RESOURCE_ID_MASK_OuterLightShadow,
     RESOURCE_ID_MASK_LightShadow,
     RESOURCE_ID_MASK_Center,
+    RESOURCE_ID_MASK_TopFace,
     RESOURCE_ID_MASK_Face,
+    RESOURCE_ID_MASK_Nose,
+    RESOURCE_ID_MASK_OuterHighlight,
     RESOURCE_ID_MASK_Highlight,
 };
 static uint32_t mask_path_clip[PATH_COUNT] = {
-    290, 112, 850, 270, 256, 220, 292, 1950, 1175, 256,
+    290, 112, 320,  850,  142, 270,  170, 256,
+    220, 292, 1950, 1175, 370, 1175, 158, 256,
 };
-static uint32_t scale = 1950;
-#define DO_ZOOM
+static uint32_t scale = 142;
 static GColor mask_path_colors[PATH_COUNT];
+void init_colors() {
+  size_t i = 0;
+  mask_path_colors[i++] = GColorBlack;
+  mask_path_colors[i++] = GColorDarkGreen;
+  mask_path_colors[i++] = GColorDarkGreen;
+  mask_path_colors[i++] = GColorDarkGreen;
+  mask_path_colors[i++] = GColorArmyGreen;
+  mask_path_colors[i++] = GColorArmyGreen;
+  mask_path_colors[i++] = GColorArmyGreen;
+  mask_path_colors[i++] = GColorArmyGreen;
+  mask_path_colors[i++] = GColorLimerick;
+  mask_path_colors[i++] = GColorLimerick;
+  mask_path_colors[i++] = GColorMediumAquamarine;
+  mask_path_colors[i++] = GColorKellyGreen;
+  mask_path_colors[i++] = GColorKellyGreen;
+  mask_path_colors[i++] = GColorKellyGreen;
+  mask_path_colors[i++] = GColorBrass;
+  mask_path_colors[i++] = GColorBrass;
+}
 static FFont *font;
 static FPath *mask_paths[PATH_COUNT];
-#define ZOOM_DELAY 5000
 #define SMALL 0
 #define BIG 2048
+#define ZOOM_DELAY 5000
 #define ANIM_ZOOM_IN_DUR 1000
 #define ANIM_ZOOM_OUT_DUR 2000
 static bool is_animating = false;
@@ -90,7 +116,7 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   }
 
   fctx_begin_fill(fcontext);
-  fctx_set_text_em_height(fcontext, font, 20 * text_scale / 256);
+  fctx_set_text_em_height(fcontext, font, 22 * text_scale / 256);
   fctx_set_offset(fcontext,
                   FPoint(bounds.size.w * 16 / 2,
                          bounds.size.h * 16 / 2 + 34 * 16 + text_y_offset -
@@ -110,6 +136,11 @@ static bool prv_should_skip_dither(GRect bounds, int16_t x, int16_t y) {
 
 static void prv_mask_draw(Layer *layer, GContext *ctx) {
   layer_mark_dirty(s_time_layer);
+#ifdef DEBUG
+  time_t start_sec, end_sec;
+  uint16_t start_ms, end_ms;
+  time_ms(&start_sec, &start_ms);
+#endif
   if (scale == BIG) {
     return;
   }
@@ -137,6 +168,7 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   }
 #else
   uint8_t i = 0;
+  GBitmap *fb;
   if (mask_path_clip[i] >= scale) {
     fctx_begin_fill(fcontext);
     fctx_set_fill_color(fcontext, GColorBlack);
@@ -145,7 +177,14 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
     fctx_end_fill(fcontext);
   }
   i++;
-  GBitmap *fb;
+  if (mask_path_clip[i] >= scale) {
+    fctx_begin_fill(fcontext);
+    fctx_set_fill_color(fcontext, GColorWhite);
+    fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
+                       mask_paths[i]->size);
+    fctx_end_fill(fcontext);
+  }
+  i++;
   if (mask_path_clip[i] >= scale) {
     fctx_begin_fill(fcontext);
     fctx_set_fill_color(fcontext, GColorWhite);
@@ -215,6 +254,22 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
     fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
                        mask_paths[i]->size);
     fctx_end_fill(fcontext);
+  }
+  i++;
+  if (mask_path_clip[i] >= scale) {
+    fctx_begin_fill(fcontext);
+    fctx_set_fill_color(fcontext, GColorWhite);
+    fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
+                       mask_paths[i]->size);
+    fctx_end_fill(fcontext);
+  }
+  i++;
+  if (mask_path_clip[i] >= scale) {
+    fctx_begin_fill(fcontext);
+    fctx_set_fill_color(fcontext, GColorWhite);
+    fctx_draw_commands(fcontext, offset, mask_paths[i]->data,
+                       mask_paths[i]->size);
+    fctx_end_fill(fcontext);
     fb = graphics_capture_frame_buffer(ctx);
     for (int16_t y = 0; y < bounds.size.h; y++) {
       GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
@@ -250,6 +305,12 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
 #endif
 
   fctx_deinit_context(fcontext);
+
+#ifdef DEBUG
+  time_ms(&end_sec, &end_ms);
+  int elapsed_ms = (int)((end_sec - start_sec) * 1000 + (end_ms - start_ms));
+  APP_LOG(APP_LOG_LEVEL_INFO, "%lu %d", scale, elapsed_ms);
+#endif
 }
 
 static void zoom_in_setup(Animation *animation) {
@@ -313,7 +374,8 @@ static void accel_tap(AccelAxisType axis, int32_t direction) {
       }
     } else {
       do_zoom_in();
-      timer = app_timer_register(ZOOM_DELAY, do_zoom_out, NULL);
+      timer =
+          app_timer_register(ZOOM_DELAY + ANIM_ZOOM_IN_DUR, do_zoom_out, NULL);
     }
   }
 }
@@ -328,16 +390,7 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 }
 
 static void prv_window_load(Window *window) {
-  mask_path_colors[0] = GColorBlack;
-  mask_path_colors[1] = GColorDarkGreen;
-  mask_path_colors[2] = GColorDarkGreen;
-  mask_path_colors[3] = GColorArmyGreen;
-  mask_path_colors[4] = GColorArmyGreen;
-  mask_path_colors[5] = GColorLimerick;
-  mask_path_colors[6] = GColorLimerick;
-  mask_path_colors[7] = GColorMediumAquamarine;
-  mask_path_colors[8] = GColorKellyGreen;
-  mask_path_colors[9] = GColorBrass;
+  init_colors();
 
   fcontext = calloc(1, sizeof(FContext));
   font = ffont_create_from_resource(RESOURCE_ID_WildsFont);
@@ -365,7 +418,7 @@ static void prv_window_load(Window *window) {
   current_time = localtime(&now);
   handle_minute_tick(current_time, MINUTE_UNIT);
 
-#ifdef DO_ZOOM
+#ifndef DEBUG
   do_zoom_out();
 #endif
 }
