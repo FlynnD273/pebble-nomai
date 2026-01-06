@@ -10,8 +10,13 @@ static Layer *s_mask_layer;
 static FContext *fcontext;
 
 typedef enum GaugeType {
-  GaugeTypeWatchBattery,
+  GaugeTypeWatchBattery = 0,
   GaugeTypePhoneBattery,
+  GaugeType24Hour,
+  GaugeType24HourInverted,
+  GaugeTypeTemp,
+  GaugeTypePrecip,
+  GaugeTypeCount,
 } GaugeType;
 
 #define SETTINGS_KEY 0
@@ -74,19 +79,13 @@ static bool is_animating = false;
 static AppTimer *timer = NULL;
 
 static struct tm *current_time;
-static uint8_t batt_percent;
-static uint8_t phone_batt_percent = 0;
 
-static void request_battery();
+static uint8_t gauge_values[GaugeTypeCount];
 
-static uint8_t get_gauge_value(GaugeType type) {
-  switch (type) {
-  case GaugeTypePhoneBattery:
-    return phone_batt_percent;
-  case GaugeTypeWatchBattery:
-    return batt_percent;
-  }
-  return 0;
+static void request_phone_data(char *action);
+
+static bool is_using_gaugeType(GaugeType type) {
+  return settings.lower_gauge == type || settings.upper_gauge == type;
 }
 
 static void prv_time_draw(Layer *layer, GContext *ctx) {
@@ -150,7 +149,7 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   fctx_deinit_context(fcontext);
 
   uint8_t offset =
-      1 + ((BIG - SMALL) - (scale - SMALL - 1)) * 8 / (BIG - SMALL);
+      1 + ((BIG - SMALL) - (scale - SMALL - 1)) * 16 / (BIG - SMALL);
   GRect rect = GRect(offset, offset, bounds.size.w - offset * 2,
                      bounds.size.h - offset * 2);
   if (scale < 670) {
@@ -175,7 +174,7 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
       ctx, rect, GOvalScaleModeFitCircle,
       DEG_TO_TRIGANGLE(
           90 + 90 *
-                   (100 - get_gauge_value(settings.lower_gauge) +
+                   (100 - gauge_values[settings.lower_gauge] +
                     ((BIG - SMALL) - (scale - SMALL)) * 100 / (BIG - SMALL)) /
                    100),
       DEG_TO_TRIGANGLE(180));
@@ -183,7 +182,7 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   graphics_context_set_stroke_color(ctx, GColorCeleste);
   uint16_t angle_offset =
       90 *
-      (get_gauge_value(settings.upper_gauge) -
+      (gauge_values[settings.upper_gauge] -
        ((BIG - SMALL) - (scale - SMALL)) * 100 / (BIG - SMALL)) /
       100;
   if (angle_offset > 0) {
@@ -199,7 +198,6 @@ static bool prv_should_skip_dither(GRect bounds, int16_t x, int16_t y) {
 }
 
 static void prv_mask_draw(Layer *layer, GContext *ctx) {
-  layer_mark_dirty(s_time_layer);
   if (scale == BIG) {
     return;
   }
@@ -343,7 +341,7 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
 }
 
 static void handle_battery(BatteryChargeState charge_state) {
-  batt_percent = charge_state.charge_percent;
+  gauge_values[GaugeTypeWatchBattery] = charge_state.charge_percent;
   layer_mark_dirty(s_mask_layer);
 }
 
@@ -418,8 +416,17 @@ static void accel_tap(AccelAxisType axis, int32_t direction) {
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   if (units_changed & MINUTE_UNIT) {
     memcpy(current_time, tick_time, sizeof(struct tm));
+    gauge_values[GaugeType24Hour] = current_time->tm_hour * 100 / 24;
+    gauge_values[GaugeType24HourInverted] =
+        (24 - current_time->tm_hour) * 100 / 24;
     if (current_time->tm_min % 5 == 0) {
-      request_battery();
+      request_phone_data("Battery");
+    }
+    if (current_time->tm_min % 15 == 0) {
+      if (is_using_gaugeType(GaugeTypeTemp) ||
+          is_using_gaugeType(GaugeTypePrecip)) {
+        request_phone_data("Weather");
+      }
     }
     if (scale == BIG) {
       layer_mark_dirty(s_mask_layer);
@@ -477,21 +484,29 @@ static void save_settings() {
   persist_write_data(SETTINGS_KEY, &settings, sizeof(settings));
 }
 
-static void request_battery() {
-  printf("Requesting battery...");
+static void request_phone_data(char *action) {
   DictionaryIterator *iter;
   AppMessageResult result = app_message_outbox_begin(&iter);
 
   if (result == APP_MSG_OK) {
-    dict_write_cstring(iter, MESSAGE_KEY_Action, "GetPhoneBatt");
+    dict_write_cstring(iter, MESSAGE_KEY_Action, action);
     result = app_message_outbox_send();
   }
 }
 
 static void inbox_received_handler(DictionaryIterator *iter, void *context) {
-  Tuple *tuple = dict_find(iter, MESSAGE_KEY_PhoneBattLevel);
+  Tuple *tuple;
+  tuple = dict_find(iter, MESSAGE_KEY_PhoneBattLevel);
   if (tuple) {
-    phone_batt_percent = tuple->value->int32;
+    gauge_values[GaugeTypePhoneBattery] = tuple->value->int32;
+  }
+  tuple = dict_find(iter, MESSAGE_KEY_WTemp);
+  if (tuple) {
+    gauge_values[GaugeTypeTemp] = tuple->value->int32;
+  }
+  tuple = dict_find(iter, MESSAGE_KEY_WPrecip);
+  if (tuple) {
+    gauge_values[GaugeTypePrecip] = tuple->value->int32;
   }
   tuple = dict_find(iter, MESSAGE_KEY_UpperGauge);
   if (tuple) {
