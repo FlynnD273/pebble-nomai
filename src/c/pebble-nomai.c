@@ -149,7 +149,7 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   fctx_deinit_context(fcontext);
 
   uint8_t offset =
-      1 + ((BIG - SMALL) - (scale - SMALL - 1)) * 16 / (BIG - SMALL);
+      1 + ((BIG - SMALL) - (scale - SMALL - 1)) * 8 / (BIG - SMALL);
   GRect rect = GRect(offset, offset, bounds.size.w - offset * 2,
                      bounds.size.h - offset * 2);
   if (scale < 670) {
@@ -473,6 +473,11 @@ static void prv_window_unload(Window *window) {
   for (uint8_t i = 0; i < PATH_COUNT; i++) {
     fpath_destroy(mask_paths[i]);
   }
+  ffont_destroy(font);
+  if (is_animating) {
+    animation_destroy(animation);
+  }
+  free(fcontext);
 }
 
 static void load_settings() {
