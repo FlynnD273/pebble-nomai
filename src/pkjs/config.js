@@ -8,6 +8,12 @@ module.exports = [
 		"type": "section",
 		"items": [
 			{
+				"type": "toggle",
+				"messageKey": "ControlBacklight",
+				"label": "Turn on backlight for the entire animation",
+				"defaultValue": true
+			},
+			{
 				"type": "slider",
 				"messageKey": "ZoomInDur",
 				"label": "Zoom in duration (ms)",

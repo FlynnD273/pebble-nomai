@@ -27,16 +27,18 @@ typedef struct settings {
   uint32_t zoom_pause_duration;
   GaugeType upper_gauge;
   GaugeType lower_gauge;
+  bool controlBacklight;
 } Settings;
 static Settings settings;
 
 static void default_settings() {
-  settings.version = 0;
+  settings.version = 1;
   settings.zoom_in_duration = 1000;
   settings.zoom_out_duration = 2000;
   settings.zoom_pause_duration = 5000;
   settings.upper_gauge = GaugeTypePhoneBattery;
   settings.lower_gauge = GaugeTypeWatchBattery;
+  settings.controlBacklight = true;
 }
 
 #define PATH_COUNT 10
@@ -349,6 +351,9 @@ static void zoom_in_setup(Animation *animation) {
   is_animating = true;
   scale = SMALL;
   layer_mark_dirty(s_mask_layer);
+  if (settings.controlBacklight) {
+    light_enable(true);
+  }
 }
 
 static void zoom_in_update(Animation *animation,
@@ -361,6 +366,9 @@ static void zoom_out_setup(Animation *animation) {
   is_animating = true;
   scale = BIG;
   layer_mark_dirty(s_mask_layer);
+  if (settings.controlBacklight) {
+    light_enable(true);
+  }
 }
 
 static void zoom_out_update(Animation *animation,
@@ -369,16 +377,21 @@ static void zoom_out_update(Animation *animation,
   layer_mark_dirty(s_mask_layer);
 }
 
-static void animation_teardown(Animation *animation) { is_animating = false; }
+static void zoom_in_teardown(Animation *animation) { is_animating = false; }
+static void zoom_out_teardown(Animation *animation) {
+  is_animating = false;
+  if (settings.controlBacklight) {
+    light_enable(false);
+  }
+}
 
 static const AnimationImplementation zoom_in = {.setup = zoom_in_setup,
                                                 .update = zoom_in_update,
-                                                .teardown = animation_teardown};
+                                                .teardown = zoom_in_teardown};
 
 static const AnimationImplementation zoom_out = {.setup = zoom_out_setup,
                                                  .update = zoom_out_update,
-                                                 .teardown =
-                                                     animation_teardown};
+                                                 .teardown = zoom_out_teardown};
 
 Animation *animation;
 
@@ -532,6 +545,10 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   tuple = dict_find(iter, MESSAGE_KEY_ZoomPauseDur);
   if (tuple) {
     settings.zoom_pause_duration = tuple->value->int32;
+  }
+  tuple = dict_find(iter, MESSAGE_KEY_ControlBacklight);
+  if (tuple) {
+    settings.controlBacklight = tuple->value->int8;
   }
   save_settings();
 }
