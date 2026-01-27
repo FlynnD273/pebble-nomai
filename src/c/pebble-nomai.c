@@ -152,6 +152,9 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
 
   uint8_t offset =
       1 + ((BIG - SMALL) - (scale - SMALL - 1)) * 8 / (BIG - SMALL);
+#ifdef PBL_ROUND
+  offset += 3;
+#endif
   GRect rect = GRect(offset, offset, bounds.size.w - offset * 2,
                      bounds.size.h - offset * 2);
   if (scale < 670) {
