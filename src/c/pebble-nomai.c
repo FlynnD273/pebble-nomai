@@ -33,10 +33,10 @@ static Settings settings;
 
 static void default_settings() {
   settings.version = 1;
-  settings.zoom_in_duration = 1000;
-  settings.zoom_out_duration = 2000;
-  settings.zoom_pause_duration = 5000;
-  settings.upper_gauge = GaugeTypePhoneBattery;
+  settings.zoom_in_duration = 2000;
+  settings.zoom_out_duration = 4000;
+  settings.zoom_pause_duration = 2000;
+  settings.upper_gauge = GaugeType24Hour;
   settings.lower_gauge = GaugeTypeWatchBattery;
   settings.controlBacklight = true;
 }
@@ -354,9 +354,9 @@ static void zoom_in_setup(Animation *animation) {
   is_animating = true;
   scale = SMALL;
   layer_mark_dirty(s_mask_layer);
-  if (settings.controlBacklight) {
-    light_enable(true);
-  }
+  // if (settings.controlBacklight) {
+  //   light_enable(true);
+  // }
 }
 
 static void zoom_in_update(Animation *animation,
@@ -369,9 +369,9 @@ static void zoom_out_setup(Animation *animation) {
   is_animating = true;
   scale = BIG;
   layer_mark_dirty(s_mask_layer);
-  if (settings.controlBacklight) {
-    light_enable(true);
-  }
+  // if (settings.controlBacklight) {
+  //   light_enable(true);
+  // }
 }
 
 static void zoom_out_update(Animation *animation,
@@ -383,9 +383,9 @@ static void zoom_out_update(Animation *animation,
 static void zoom_in_teardown(Animation *animation) { is_animating = false; }
 static void zoom_out_teardown(Animation *animation) {
   is_animating = false;
-  if (settings.controlBacklight) {
-    light_enable(false);
-  }
+  // if (settings.controlBacklight) {
+  //   light_enable(false);
+  // }
 }
 
 static const AnimationImplementation zoom_in = {.setup = zoom_in_setup,
@@ -478,10 +478,10 @@ static void prv_window_load(Window *window) {
   time_t now = time(NULL);
   current_time = localtime(&now);
   handle_minute_tick(current_time, MINUTE_UNIT);
-
-#ifndef DEBUG
-  do_zoom_out();
-#endif
+  //
+  // #ifndef DEBUG
+  //   do_zoom_out();
+  // #endif
 }
 
 static void prv_window_unload(Window *window) {
@@ -568,6 +568,7 @@ static void prv_init(void) {
 
   app_message_register_inbox_received(inbox_received_handler);
   app_message_open(128, 128);
+  light_enable(true);
 }
 
 static void prv_deinit(void) { window_destroy(s_window); }
