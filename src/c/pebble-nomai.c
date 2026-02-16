@@ -450,6 +450,12 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   }
 }
 
+static void pebblekit_connected(bool connected) {
+  if (!connected) {
+    gauge_values[GaugeTypePhoneBattery] = 0;
+  }
+}
+
 static void prv_window_load(Window *window) {
   init_colors();
 
@@ -470,6 +476,7 @@ static void prv_window_load(Window *window) {
   layer_set_update_proc(s_mask_layer, prv_mask_draw);
   layer_add_child(window_layer, s_mask_layer);
 
+  bluetooth_connection_service_subscribe(pebblekit_connected);
   accel_tap_service_subscribe(accel_tap);
   battery_state_service_subscribe(handle_battery);
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
