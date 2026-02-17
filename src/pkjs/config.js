@@ -14,6 +14,12 @@ module.exports = [
 				"defaultValue": true
 			},
 			{
+				"type": "toggle",
+				"messageKey": "DefaultMask",
+				"label": "If the default screen should be the Nomai mask (as opposed to the time)",
+				"defaultValue": true
+			},
+			{
 				"type": "slider",
 				"messageKey": "ZoomInDur",
 				"label": "Zoom in duration (ms)",

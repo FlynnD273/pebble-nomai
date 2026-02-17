@@ -28,17 +28,29 @@ typedef struct settings {
   GaugeType upper_gauge;
   GaugeType lower_gauge;
   bool controlBacklight;
+  bool default_mask;
 } Settings;
 static Settings settings;
 
 static void default_settings() {
-  settings.version = 1;
+  settings.version = 2;
   settings.zoom_in_duration = 1000;
   settings.zoom_out_duration = 2000;
   settings.zoom_pause_duration = 5000;
   settings.upper_gauge = GaugeTypePhoneBattery;
   settings.lower_gauge = GaugeTypeWatchBattery;
   settings.controlBacklight = true;
+  settings.default_mask = true;
+}
+
+static void load_settings() {
+  default_settings();
+  persist_read_data(SETTINGS_KEY, &settings, sizeof(settings));
+  switch (settings.version) {
+  case 1:
+    settings.version = 2;
+    settings.default_mask = true;
+  }
 }
 
 #define PATH_COUNT 10
@@ -77,7 +89,6 @@ static FFont *font;
 static FPath *mask_paths[PATH_COUNT];
 #define SMALL 0
 #define BIG 2048
-static bool is_animating = false;
 static AppTimer *timer = NULL;
 
 static struct tm *current_time;
@@ -351,7 +362,6 @@ static void handle_battery(BatteryChargeState charge_state) {
 }
 
 static void zoom_in_setup(Animation *animation) {
-  is_animating = true;
   scale = SMALL;
   layer_mark_dirty(s_mask_layer);
   if (settings.controlBacklight) {
@@ -366,7 +376,6 @@ static void zoom_in_update(Animation *animation,
 }
 
 static void zoom_out_setup(Animation *animation) {
-  is_animating = true;
   scale = BIG;
   layer_mark_dirty(s_mask_layer);
   if (settings.controlBacklight) {
@@ -380,10 +389,13 @@ static void zoom_out_update(Animation *animation,
   layer_mark_dirty(s_mask_layer);
 }
 
-static void zoom_in_teardown(Animation *animation) { is_animating = false; }
+static void zoom_in_teardown(Animation *animation) {
+  if (!settings.default_mask && settings.controlBacklight) {
+    light_enable(false);
+  }
+}
 static void zoom_out_teardown(Animation *animation) {
-  is_animating = false;
-  if (settings.controlBacklight) {
+  if (settings.default_mask && settings.controlBacklight) {
     light_enable(false);
   }
 }
@@ -414,17 +426,32 @@ static void do_zoom_in() {
   animation_schedule(animation);
 }
 
+static void zoom_to_default() {
+  timer = NULL;
+  if (settings.default_mask) {
+    do_zoom_out();
+  } else {
+    do_zoom_in();
+  }
+}
+
+static void zoom_to_nondefault() {
+  if (settings.default_mask) {
+    do_zoom_in();
+  } else {
+    do_zoom_out();
+  }
+}
+
 static void accel_tap(AccelAxisType axis, int32_t direction) {
-  if (!is_animating) {
-    if (scale == BIG) {
-      if (timer) {
-        app_timer_reschedule(timer, settings.zoom_pause_duration);
-      }
+  if (!animation_is_scheduled(animation)) {
+    if (timer) {
+      app_timer_reschedule(timer, settings.zoom_pause_duration);
     } else {
-      do_zoom_in();
+      zoom_to_nondefault();
       timer = app_timer_register(settings.zoom_pause_duration +
                                      settings.zoom_in_duration,
-                                 do_zoom_out, NULL);
+                                 zoom_to_default, NULL);
     }
   }
 }
@@ -487,7 +514,7 @@ static void prv_window_load(Window *window) {
   handle_minute_tick(current_time, MINUTE_UNIT);
 
 #ifndef DEBUG
-  do_zoom_out();
+  zoom_to_default();
 #endif
 }
 
@@ -497,15 +524,10 @@ static void prv_window_unload(Window *window) {
     fpath_destroy(mask_paths[i]);
   }
   ffont_destroy(font);
-  if (is_animating) {
+  if (animation_is_scheduled(animation)) {
     animation_destroy(animation);
   }
   free(fcontext);
-}
-
-static void load_settings() {
-  default_settings();
-  persist_read_data(SETTINGS_KEY, &settings, sizeof(settings));
 }
 
 static void save_settings() {
@@ -559,6 +581,11 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   tuple = dict_find(iter, MESSAGE_KEY_ControlBacklight);
   if (tuple) {
     settings.controlBacklight = tuple->value->int8;
+  }
+  tuple = dict_find(iter, MESSAGE_KEY_DefaultMask);
+  if (tuple) {
+    settings.default_mask = tuple->value->int8;
+    zoom_to_default();
   }
   save_settings();
 }
