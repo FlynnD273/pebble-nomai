@@ -1,6 +1,6 @@
-#include <pebble-fctx/fctx.h>
-#include <pebble-fctx/ffont.h>
-#include <pebble-fctx/fpath.h>
+#include "fctx.h"
+#include "ffont.h"
+#include "fpath.h"
 #include <pebble.h>
 // #define DEBUG
 
