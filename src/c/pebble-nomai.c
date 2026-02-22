@@ -2,7 +2,8 @@
 #include <pebble-fctx/ffont.h>
 #include <pebble-fctx/fpath.h>
 #include <pebble.h>
-#define DEBUG
+// #define DEBUG
+#define ANIMATION_DEMO
 
 static Window *s_window;
 static Layer *s_time_layer;
@@ -84,11 +85,11 @@ void init_colors() {
   mask_path_colors[i++] = GColorKellyGreen;
   mask_path_colors[i++] = GColorBrass;
 }
-static uint16_t scale = 2048;
 static FFont *font;
 static FPath *mask_paths[PATH_COUNT];
 #define SMALL 0
 #define BIG 2048
+static uint16_t scale = SMALL;
 static AppTimer *timer = NULL;
 
 static struct tm *current_time;
@@ -365,9 +366,11 @@ static void handle_battery(BatteryChargeState charge_state) {
 static void zoom_in_setup(Animation *animation) {
   scale = SMALL;
   layer_mark_dirty(s_mask_layer);
+#ifndef ANIMATION_DEMO
   if (settings.controlBacklight) {
     light_enable(true);
   }
+#endif
 }
 
 static void zoom_in_update(Animation *animation,
@@ -379,9 +382,11 @@ static void zoom_in_update(Animation *animation,
 static void zoom_out_setup(Animation *animation) {
   scale = BIG;
   layer_mark_dirty(s_mask_layer);
+#ifndef ANIMATION_DEMO
   if (settings.controlBacklight) {
     light_enable(true);
   }
+#endif
 }
 
 static void zoom_out_update(Animation *animation,
@@ -391,14 +396,18 @@ static void zoom_out_update(Animation *animation,
 }
 
 static void zoom_in_teardown(Animation *animation) {
+#ifndef ANIMATION_DEMO
   if (!settings.default_mask && settings.controlBacklight) {
     light_enable(false);
   }
+#endif
 }
 static void zoom_out_teardown(Animation *animation) {
+#ifndef ANIMATION_DEMO
   if (settings.default_mask && settings.controlBacklight) {
     light_enable(false);
   }
+#endif
 }
 
 static const AnimationImplementation zoom_in = {.setup = zoom_in_setup,
@@ -514,8 +523,11 @@ static void prv_window_load(Window *window) {
   current_time = localtime(&now);
   handle_minute_tick(current_time, MINUTE_UNIT);
 
-#ifndef DEBUG
+#if !defined(DEBUG) && !defined(ANIMATION_DEMO)
   zoom_to_default();
+#endif
+#ifdef ANIMATION_DEMO
+  light_enable(true);
 #endif
 }
 
