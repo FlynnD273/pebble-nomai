@@ -2,7 +2,7 @@
 #include <pebble-fctx/ffont.h>
 #include <pebble-fctx/fpath.h>
 #include <pebble.h>
-// #define DEBUG
+#define DEBUG
 
 static Window *s_window;
 static Layer *s_time_layer;
@@ -84,7 +84,7 @@ void init_colors() {
   mask_path_colors[i++] = GColorKellyGreen;
   mask_path_colors[i++] = GColorBrass;
 }
-static uint16_t scale = 0;
+static uint16_t scale = 2048;
 static FFont *font;
 static FPath *mask_paths[PATH_COUNT];
 #define SMALL 0
@@ -132,7 +132,8 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   }
 
   fctx_begin_fill(fcontext);
-  fctx_set_text_em_height(fcontext, font, 38 * text_scale / 256);
+  uint16_t min = bounds.size.w < bounds.size.h ? bounds.size.w : bounds.size.h;
+  fctx_set_text_em_height(fcontext, font, min * text_scale / 256 / 4);
   fctx_set_offset(fcontext, FPoint(bounds.size.w * 16 / 2,
                                    bounds.size.h * 16 / 2 + text_y_offset));
   fctx_set_fill_color(fcontext, GColorWhite);
@@ -150,10 +151,10 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   }
 
   fctx_begin_fill(fcontext);
-  fctx_set_text_em_height(fcontext, font, 18 * text_scale / 256);
+  fctx_set_text_em_height(fcontext, font, min * text_scale / 256 / 8);
   fctx_set_offset(fcontext,
                   FPoint(bounds.size.w * 16 / 2,
-                         bounds.size.h * 16 / 2 + 24 * 16 + text_y_offset -
+                         bounds.size.h * 16 / 2 + min / 6 * 16 + text_y_offset -
                              36 * 16 * (256 - text_scale) / 256));
   fctx_set_fill_color(fcontext, GColorWhite);
   fctx_draw_string(fcontext, date_buf, font, GTextAlignmentCenter,
@@ -161,7 +162,7 @@ static void prv_time_draw(Layer *layer, GContext *ctx) {
   fctx_end_fill(fcontext);
   fctx_deinit_context(fcontext);
 
-  uint8_t offset =
+  uint16_t offset =
       1 + ((BIG - SMALL) - (scale - SMALL - 1)) * 8 / (BIG - SMALL);
 #ifdef PBL_ROUND
   offset += 3;
@@ -220,7 +221,7 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   uint16_t y_offset = 296;
   GRect bounds = layer_get_bounds(layer);
   fctx_init_context(fcontext, ctx);
-  uint8_t min = bounds.size.w < bounds.size.h ? bounds.size.w : bounds.size.h;
+  uint16_t min = bounds.size.w < bounds.size.h ? bounds.size.w : bounds.size.h;
   fctx_set_scale(
       fcontext, FPointI(128, 128),
       FPoint(min * 16 * (scale + 128) / 128, min * 16 * (scale + 128) / 128));

@@ -1,7 +1,7 @@
 {
 	"name": "pebble-nomai",
 	"author": "MakeAwesomeHappen",
-	"version": "1.6.0",
+	"version": "1.7.0",
 	"keywords": [
 		"pebble-app"
 	],
@@ -16,7 +16,8 @@
 			"chalk",
 			"diorite",
 			"emery",
-			"flint"
+			"flint",
+			"gabbro"
 		],
 		"watchapp": {
 			"watchface": true
