@@ -3,8 +3,8 @@
 		"directory": "/home/flynn/Documents/Pebble/pebble-nomai",
 		"arguments": [
 			"gcc",
-			"-I/home/flynn/.pebble-sdk/SDKs/4.9.77/toolchain/arm-none-eabi/arm-none-eabi/include",
-			"-I/home/flynn/.pebble-sdk/SDKs/4.9.77/sdk-core/pebble/basalt/include",
+			"-I/home/flynn/.pebble-sdk/SDKs/current/toolchain/arm-none-eabi/arm-none-eabi/include",
+			"-I/home/flynn/.pebble-sdk/SDKs/current/sdk-core/pebble/basalt/include",
 			"-Ibuild/include/",
 			"-Iinclude/",
 			"-Inode_modules/pebble-fctx/dist/include/",

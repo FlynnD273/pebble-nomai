@@ -11,6 +11,12 @@
 		"sdkVersion": "3",
 		"enableMultiJS": true,
 		"targetPlatforms": [
+			"aplite",
+			"basalt",
+			"chalk",
+			"diorite",
+			"emery",
+			"flint",
 			"gabbro"
 		],
 		"watchapp": {
@@ -38,53 +44,8 @@
 		"resources": {
 			"media": [
 				{
-					"file": "Center.fpath",
-					"name": "MASK_Center",
-					"type": "raw"
-				},
-				{
-					"file": "Eye.fpath",
-					"name": "MASK_Eye",
-					"type": "raw"
-				},
-				{
-					"file": "Face.fpath",
-					"name": "MASK_Face",
-					"type": "raw"
-				},
-				{
-					"file": "Highlight.fpath",
-					"name": "MASK_Highlight",
-					"type": "raw"
-				},
-				{
-					"file": "LightShadow.fpath",
-					"name": "MASK_LightShadow",
-					"type": "raw"
-				},
-				{
-					"file": "Mid.fpath",
-					"name": "MASK_Mid",
-					"type": "raw"
-				},
-				{
-					"file": "OuterLightShadow.fpath",
-					"name": "MASK_OuterLightShadow",
-					"type": "raw"
-				},
-				{
-					"file": "OuterMid.fpath",
-					"name": "MASK_OuterMid",
-					"type": "raw"
-				},
-				{
-					"file": "OuterShadow.fpath",
-					"name": "MASK_OuterShadow",
-					"type": "raw"
-				},
-				{
-					"file": "Shadow.fpath",
-					"name": "MASK_Shadow",
+					"file": "mask.pdc",
+					"name": "MASK_PDC",
 					"type": "raw"
 				},
 				{

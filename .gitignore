@@ -1,3 +1,5 @@
+compile_commands.json
 node_modules
 build
-.lock-waf*
+.lock*
+*.blend[0-9]
