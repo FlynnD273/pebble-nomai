@@ -1,15 +1,13 @@
 #include <pebble-fctx/fctx.h>
 #include <pebble-fctx/ffont.h>
 #include <pebble-fctx/fpath.h>
-#include <pebble.h>
 // #define DEBUG
-#define ANIMATION_DEMO
+// #define ANIMATION_DEMO
 
 static Window *s_window;
 static Layer *s_time_layer;
 static Layer *s_mask_layer;
 static FContext *fcontext;
-static GDrawCommandImage *mask_pdc;
 
 typedef enum GaugeType {
   GaugeTypeWatchBattery = 0,
@@ -188,20 +186,60 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   if (scale == BIG) {
     return;
   }
-  uint16_t y_offset = 296;
   GRect bounds = layer_get_bounds(layer);
-  fctx_init_context(fcontext, ctx);
-  uint16_t min = bounds.size.w < bounds.size.h ? bounds.size.w : bounds.size.h;
-  fctx_set_scale(
-      fcontext, FPointI(128, 128),
-      FPoint(min * 16 * (scale + 128) / 128, min * 16 * (scale + 128) / 128));
-  fctx_set_pivot(fcontext, FPointI(64, 64));
-  fctx_set_offset(fcontext, FPoint(bounds.size.w * 16 / 2,
-                                   bounds.size.h * 16 / 2 - y_offset));
-  FPoint offset = FPoint(0, y_offset);
-#ifdef PBL_COLOR
-#else
+  uint16_t side_length =
+      bounds.size.w < bounds.size.h ? bounds.size.w : bounds.size.h;
+  GDrawCommandImage *scaled_pdc =
+      gdraw_command_image_create_with_resource(RESOURCE_ID_MASK_PDC);
+  int32_t old_width = 1024;
+  int32_t new_width = side_length * (scale + 128) / 128;
+  GDrawCommandList *list = gdraw_command_image_get_command_list(scaled_pdc);
+  uint16_t num_cmds = gdraw_command_list_get_num_commands(list);
+  // There's a bug in my code somehwere that makes this off by a factor of 8,
+  // hence the multiply by 8
+  int32_t x_offset = (new_width - bounds.size.w) * 8 / 2;
+  int32_t y_offset =
+      (new_width - bounds.size.h) * 8 / 2 - (scale * side_length / 140);
+
+  gdraw_command_image_destroy(scaled_pdc);
+#ifndef PBL_COLOR
+  uint8_t black[] = {0, 1};
+  // Halftone
+  uint8_t half_tone[] = {2, 3, 4, 5, 6, 7};
+  // Quarter tone
+  uint8_t quarter_tone[] = {8, 9, 10, 11};
   GBitmap *fb;
+  GDrawCommand *command;
+  uint16_t num_points;
+
+  for (uint8_t i = 0; i < sizeof(black); i++) {
+    uint8_t idx = black[i];
+    command = gdraw_command_list_get_command(list, idx);
+    num_points = gdraw_command_get_num_points(command);
+    for (uint16_t i = 0; i < num_points; i++) {
+      GPoint point = gdraw_command_get_point(command, i);
+      point = GPoint((point.x * new_width / old_width) - x_offset,
+                     (point.y * new_width / old_width) - y_offset);
+      gdraw_command_set_point(command, i, point);
+    }
+    gdraw_command_set_fill_color(command, GColorBlack);
+    gdraw_command_draw(ctx, command);
+  }
+
+  for (uint8_t i = 0; i < sizeof(quarter_tone); i++) {
+    uint8_t idx = quarter_tone[i];
+    command = gdraw_command_list_get_command(list, idx);
+    num_points = gdraw_command_get_num_points(command);
+    for (uint16_t i = 0; i < num_points; i++) {
+      GPoint point = gdraw_command_get_point(command, i);
+      point = GPoint((point.x * new_width / old_width) - x_offset,
+                     (point.y * new_width / old_width) - y_offset);
+      gdraw_command_set_point(command, i, point);
+    }
+    gdraw_command_set_fill_color(command, GColorWhite);
+    gdraw_command_draw(ctx, command);
+  }
+
   fb = graphics_capture_frame_buffer(ctx);
   for (int16_t y = 0; y < bounds.size.h; y++) {
     GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
@@ -241,27 +279,47 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
     }
   }
   graphics_release_frame_buffer(ctx, fb);
-  fb = graphics_capture_frame_buffer(ctx);
-  for (int16_t y = 0; y < bounds.size.h; y++) {
-    GBitmapDataRowInfo info = gbitmap_get_data_row_info(fb, y);
-    for (int16_t x = info.min_x; x <= info.max_x; x += 8) {
-      if (prv_should_skip_dither(bounds, x, y)) {
-        continue;
-      }
-      char patt = 0;
-      switch (y % 2) {
-      case 0:
-        patt = 0b01010101;
-        break;
-      case 1:
-        patt = 0b10101010;
-        break;
-      }
 
-      info.data[x / 8] &= patt;
+  for (uint8_t i = 0; i < sizeof(half_tone); i++) {
+    uint8_t idx = half_tone[i];
+    command = gdraw_command_list_get_command(list, idx);
+    num_points = gdraw_command_get_num_points(command);
+    for (uint16_t i = 0; i < num_points; i++) {
+      GPoint point = gdraw_command_get_point(command, i);
+      point = GPoint((point.x * new_width / old_width) - x_offset,
+                     (point.y * new_width / old_width) - y_offset);
+      gdraw_command_set_point(command, i, point);
     }
+    gdraw_command_set_fill_color(command, GColorLightGray);
+    gdraw_command_draw(ctx, command);
   }
-  graphics_release_frame_buffer(ctx, fb);
+
+  for (uint8_t i = quarter_tone[sizeof(quarter_tone) - 1] + 1; i < num_cmds;
+       i++) {
+    command = gdraw_command_list_get_command(list, i);
+    num_points = gdraw_command_get_num_points(command);
+    for (uint16_t i = 0; i < num_points; i++) {
+      GPoint point = gdraw_command_get_point(command, i);
+      point = GPoint((point.x * new_width / old_width) - x_offset,
+                     (point.y * new_width / old_width) - y_offset);
+      gdraw_command_set_point(command, i, point);
+    }
+    gdraw_command_set_fill_color(command, GColorWhite);
+    gdraw_command_draw(ctx, command);
+  }
+
+#else
+  for (uint16_t l_idx = 0; l_idx < num_cmds; l_idx++) {
+    GDrawCommand *command = gdraw_command_list_get_command(list, l_idx);
+    uint16_t num_points = gdraw_command_get_num_points(command);
+    for (uint16_t i = 0; i < num_points; i++) {
+      GPoint point = gdraw_command_get_point(command, i);
+      point = GPoint((point.x * new_width / old_width) - x_offset,
+                     (point.y * new_width / old_width) - y_offset);
+      gdraw_command_set_point(command, i, point);
+    }
+    gdraw_command_draw(ctx, command);
+  }
 #endif
 
   fctx_deinit_context(fcontext);
@@ -403,7 +461,6 @@ static void pebblekit_connected(bool connected) {
 }
 
 static void prv_window_load(Window *window) {
-  mask_pdc = gdraw_command_image_create_with_resource(RESOURCE_ID_MASK_PDC);
 
   fcontext = malloc(sizeof(FContext));
   font = ffont_create_from_resource(RESOURCE_ID_WildsFont);
