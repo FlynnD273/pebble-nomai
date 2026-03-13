@@ -1,7 +1,7 @@
 {
 	"name": "pebble-nomai",
 	"author": "MakeAwesomeHappen",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"keywords": [
 		"pebble-app"
 	],
@@ -37,6 +37,7 @@
 			"WLocE",
 			"WTempMin",
 			"WTempMax",
+			"WUnits",
 			"WPrecipOffset",
 			"ControlBacklight",
 			"DefaultMask"

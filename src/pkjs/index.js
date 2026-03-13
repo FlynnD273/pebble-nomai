@@ -9,6 +9,7 @@ var settings = {
 		tempMin: 0,
 		tempMax: 0,
 		precipOffset: 0,
+		units: "celsius",
 	}
 }
 
@@ -112,6 +113,7 @@ Pebble.addEventListener("webviewclosed", function(e) {
 	getKey(dict, Keys.WTempMin, settings.weather, "tempMin");
 	getKey(dict, Keys.WTempMax, settings.weather, "tempMax");
 	getKey(dict, Keys.WPrecipOffset, settings.weather, "precipOffset");
+	getKey(dict, Keys.WUnits, settings.weather, "units");
 
 	saveSettings();
 
@@ -141,21 +143,25 @@ function locationSuccess(pos) {
 	}
 	if (!settings.weather.lat && !settings.weather.lon) { console.warn("No location set :("); return; }
 
-	const url = `https://api.open-meteo.com/v1/forecast?latitude=${settings.weather.lat}&longitude=${settings.weather.lon}&timezone=auto&hourly=precipitation_probability&current=temperature_2m,apparent_temperature&forecast_days=2`;
+	const url = `https://api.open-meteo.com/v1/forecast?latitude=${settings.weather.lat}&longitude=${settings.weather.lon}&timezone=auto&hourly=precipitation_probability&current=temperature_2m,apparent_temperature&forecast_days=2&temperature_unit=${settings.weather.units || "celsius"}`;
 	xhrRequest(url, "GET",
 		function(res) {
-			if (!res) {
+			if (!res || !res.current) {
 				console.warn("Weather response is empty");
+				console.warn("url:", url);
+				console.warn("response:", res);
 				return;
 			}
 
-			const temp = res.current.temperature_2m;
+			const temp = res.current.temperature_2m * 1;
 			const time = res.current.time;
-			const curr_hour = time.substring(time.length - "00:00".length, time.length - ":00".length);
-			const precip = Math.max(...res.hourly.precipitation_probability.slice(curr_hour, curr_hour + settings.weather.precipOffset));
+			const curr_hour = time.substring(time.length - "00:00".length, time.length - ":00".length) * 1;
+			const precip = Math.max(Array.from(res.hourly.precipitation_probability).slice(curr_hour, curr_hour + settings.weather.precipOffset + 1));
+
+			const temp_val = Math.max(0, Math.min(100, Math.round(100 * (temp - settings.weather.tempMin) / (1 * settings.weather.tempMax - settings.weather.tempMin))));
 
 			var dictionary = {
-				"WTemp": (temp * 1 - settings.weather.tempMin) * (1 * settings.weather.tempMax - settings.weather.tempMin),
+				"WTemp": temp_val,
 				"WPrecip": precip
 			};
 			Pebble.sendAppMessage(dictionary, null,
