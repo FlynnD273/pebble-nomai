@@ -9,6 +9,8 @@ static Layer *s_time_layer;
 static Layer *s_mask_layer;
 static FContext *fcontext;
 
+static GDrawCommandImage *mask_pdc;
+
 typedef enum GaugeType {
   GaugeTypeWatchBattery = 0,
   GaugeTypePhoneBattery,
@@ -189,8 +191,7 @@ static void prv_mask_draw(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   uint16_t side_length =
       bounds.size.w < bounds.size.h ? bounds.size.w : bounds.size.h;
-  GDrawCommandImage *scaled_pdc =
-      gdraw_command_image_create_with_resource(RESOURCE_ID_MASK_PDC);
+  GDrawCommandImage *scaled_pdc = gdraw_command_image_clone(mask_pdc);
   int32_t old_width = 1024;
   int32_t new_width = side_length * (scale + 128) / 128;
   GDrawCommandList *list = gdraw_command_image_get_command_list(scaled_pdc);
@@ -466,6 +467,7 @@ static void prv_window_load(Window *window) {
   font = ffont_create_from_resource(RESOURCE_ID_WildsFont);
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
+  mask_pdc = gdraw_command_image_create_with_resource(RESOURCE_ID_MASK_PDC);
 
   s_time_layer = layer_create(bounds);
   layer_set_update_proc(s_time_layer, prv_time_draw);
@@ -500,6 +502,7 @@ static void prv_window_unload(Window *window) {
     animation_destroy(animation);
   }
   free(fcontext);
+  gdraw_command_image_destroy(mask_pdc);
 }
 
 static void save_settings() {
