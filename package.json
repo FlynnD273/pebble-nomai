@@ -1,73 +1,73 @@
 {
-	"name": "pebble-nomai",
-	"author": "MakeAwesomeHappen",
-	"version": "2.1.0",
-	"keywords": [
-		"pebble-app"
-	],
-	"pebble": {
-		"displayName": "pebble-nomai",
-		"uuid": "240d60a3-7952-4094-a456-c187c46c2f52",
-		"sdkVersion": "3",
-		"enableMultiJS": true,
-		"targetPlatforms": [
-			"aplite",
-			"basalt",
-			"chalk",
-			"diorite",
-			"emery",
-			"flint",
-			"gabbro"
-		],
-		"watchapp": {
-			"watchface": true
-		},
-		"messageKeys": [
-			"Action",
-			"ZoomInDur",
-			"ZoomOutDur",
-			"ZoomPauseDur",
-			"PhoneBattLevel",
-			"UpperGauge",
-			"LowerGauge",
-			"WTemp",
-			"WPrecip",
-			"WUseLoc",
-			"WLocN",
-			"WLocE",
-			"WTempMin",
-			"WTempMax",
-			"WUnits",
-			"WPrecipOffset",
-			"ControlBacklight",
-			"DefaultMask"
-		],
-		"resources": {
-			"media": [
-				{
-					"file": "mask.pdc",
-					"name": "MASK_PDC",
-					"type": "raw"
-				},
-				{
-					"file": "OUTERwilds-Normal.ffont",
-					"name": "WildsFont",
-					"type": "raw"
-				},
-				{
-					"file": "icon.png",
-					"name": "Icon",
-					"type": "bitmap",
-					"menuIcon": "true"
-				}
-			]
-		}
-	},
-	"devDependencies": {
-		"pebble-fctx-compiler": "^1.2.2"
-	},
-	"dependencies": {
-		"@rebble/clay": "^1.0.6",
-		"pebble-fctx": "^1.6.5"
-	}
+  "name": "Nomai",
+  "author": "Flynn Duniho",
+  "version": "2.1.1",
+  "keywords": [
+    "pebble-app"
+  ],
+  "pebble": {
+    "displayName": "Nomai",
+    "uuid": "240d60a3-7952-4094-a456-c187c46c2f52",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery",
+      "flint",
+      "gabbro"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [
+      "Action",
+      "ZoomInDur",
+      "ZoomOutDur",
+      "ZoomPauseDur",
+      "PhoneBattLevel",
+      "UpperGauge",
+      "LowerGauge",
+      "WTemp",
+      "WPrecip",
+      "WUseLoc",
+      "WLocN",
+      "WLocE",
+      "WTempMin",
+      "WTempMax",
+      "WUnits",
+      "WPrecipOffset",
+      "ControlBacklight",
+      "DefaultMask"
+    ],
+    "resources": {
+      "media": [
+        {
+          "file": "mask.pdc",
+          "name": "MASK_PDC",
+          "type": "raw"
+        },
+        {
+          "file": "OUTERwilds-Normal.ffont",
+          "name": "WildsFont",
+          "type": "raw"
+        },
+        {
+          "file": "icon.png",
+          "name": "Icon",
+          "type": "bitmap",
+          "menuIcon": "true"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "pebble-fctx-compiler": "^1.2.2"
+  },
+  "dependencies": {
+    "@rebble/clay": "^1.0.6",
+    "pebble-fctx": "^1.6.5"
+  }
 }
